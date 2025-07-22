@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import React, { useState, useMemo } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -10,7 +10,7 @@ import { AlertCircle, Clock, Zap, Monitor, Search, ChevronDown, ChevronUp, Filte
 
 interface TestPattern {
   type: "execution" | "performance" | "environment"
-  severity: "critical" | "warning" | "info"
+  severity: "critical" | "warning" | "info" | "medium" | "high" | "low"
   description: string
   recommendation: string
 }
@@ -19,9 +19,11 @@ interface TestCase {
   id: string
   name: string
   duration: number
+  spec: string
   status: "passed" | "failed" | "flaky"
   riskLevel: "high" | "medium" | "low"
   patterns: TestPattern[]
+  severity?: "medium" | "high" | "low" //optional
   environment: {
     os: string
     browser: string
@@ -243,10 +245,14 @@ const mockTestData: TestCase[] = [
 
 export function PatternsAnomalies() {
   const [searchTerm, setSearchTerm] = useState("")
-  const [riskFilters, setRiskFilters] = useState<Set<string>>(new Set(["high", "medium", "low"]))
-  const [patternFilters, setPatternFilters] = useState<Set<string>>(new Set(["Execution", "performance", "environment"]))
+  const [riskFilters, setRiskFilters] = useState<Set<string>>(new Set())
+  const [patternFilters, setPatternFilters] = useState<Set<string>>(new Set())
   const [sortBy, setSortBy] = useState("riskLevel")
   const [expandedTests, setExpandedTests] = useState<Set<string>>(new Set())
+  const [expandedErrorCluster, setExpandedErrorCluster] = useState<string | null>("Timeout error")
+  const [fileNameFilter, setFileNameFilter] = useState<string>("")
+  const [categoryFilter, setCategoryFilter] = useState<string>("all")
+  const [timeoutFilter, setTimeoutFilter] = useState<string>("all")
 
   const toggleRiskFilter = (risk: string) => {
     const newFilters = new Set(riskFilters)
@@ -278,11 +284,20 @@ export function PatternsAnomalies() {
     setExpandedTests(newExpanded)
   }
 
+  const toggleErrorCluster = (clusterName: string) => {
+    setExpandedErrorCluster(expandedErrorCluster === clusterName ? null : clusterName)
+  }
+
   const filteredAndSortedTests = useMemo(() => {
     const filtered = mockTestData.filter((test) => {
-      const matchesSearch = test.name.toLowerCase().includes(searchTerm.toLowerCase())
-      const matchesRisk = riskFilters.has(test.riskLevel)
-      const matchesPattern = test.patterns.length === 0 || test.patterns.some((p) => patternFilters.has(p.type))
+      // Search filter
+      const matchesSearch = searchTerm === "" || test.name.toLowerCase().includes(searchTerm.toLowerCase())
+      
+      // Risk filter - if no risks are selected, show all; otherwise show only selected risks
+      const matchesRisk = riskFilters.size === 0 || riskFilters.has(test.riskLevel)
+      
+      // Pattern filter - if no patterns are selected, show all; otherwise show only tests with selected patterns
+      const matchesPattern = patternFilters.size === 0 || test.patterns.some((p) => patternFilters.has(p.type))
 
       return matchesSearch && matchesRisk && matchesPattern
     })
@@ -329,15 +344,55 @@ export function PatternsAnomalies() {
     }
   }, [])
 
-  const errorClusters = [
-    { name: "Timeout error ", count: 7, icon: Clock },
-    { name: "Asseertions error", count: 2, icon: Key },
-  ]
+  // Enhanced breakdown data for top cards
+  const cardBreakdowns = {
+    errorClusters: {
+      total: 2,
+      details: [
+        { label: "Timeout errors", count: 1, color: "text-red-600" },
+        { label: "Assertion errors", count: 1, color: "text-orange-600" }
+      ]
+    },
+    failures: {
+      total: 5,
+      details: [
+        { label: "Bugs", count: 3, color: "text-red-600" },
+        { label: "UI Changes", count: 2, color: "text-blue-600" }
+      ]
+    },
+    newFailures: {
+      total: 3,
+      details: [
+        { label: "Regressions", count: 2, color: "text-red-600" },
+        { label: "New Features", count: 1, color: "text-green-600" }
+      ]
+    }
+  }
 
-  const relatedTestcases = [
-    { file: "sow.spec.js", description: "duplicate SoW name", timeout: "4.2m timeout" },
-    { file: "sow.spec.js", description: "Pause Upload", timeout: "4.2m timeout" },
-    { file: "task.spec.js", description: "Move to Done", timeout: "4.2m timeout" },
+  const errorClusters = [
+    { 
+      name: "Timeout error", 
+      count: 7, 
+      icon: Clock,
+      relatedTests: [
+        { file: "sow.spec.js", testName: "duplicate SoW name", timeout: "4.2m timeout", category: "bug", link: "#test-sow-duplicate" },
+        { file: "sow.spec.js", testName: "Pause Upload", timeout: "4.2m timeout", category: "bug", link: "#test-sow-upload" },
+        { file: "task.spec.js", testName: "Move to Done", timeout: "4.2m timeout", category: "bug", link: "#test-task-done" },
+        { file: "project.spec.js", testName: "Create new project", timeout: "3.1m timeout", category: "ui-change", link: "#test-project-create" },
+        { file: "workstream.spec.js", testName: "Archive workstream", timeout: "5.0m timeout", category: "bug", link: "#test-workstream-archive" },
+        { file: "upload.spec.js", testName: "File upload process", timeout: "2.8m timeout", category: "ui-change", link: "#test-upload-process" },
+        { file: "auth.spec.js", testName: "User authentication", timeout: "1.9m timeout", category: "bug", link: "#test-auth" }
+      ]
+    },
+    { 
+      name: "Assertions error", 
+      count: 2, 
+      icon: Key,
+      relatedTests: [
+        { file: "validation.spec.js", testName: "Form validation", timeout: "0.5s", category: "bug", link: "#test-validation" },
+        { file: "api.spec.js", testName: "API response check", timeout: "1.2s", category: "ui-change", link: "#test-api" }
+      ]
+    },
   ]
 
   const getRiskColor = (risk: string) => {
@@ -381,35 +436,70 @@ export function PatternsAnomalies() {
 
   return (
     <div className="space-y-6">
-      {/* Stats Overview */}
+      {/* Enhanced Stats Overview */}
       <div className="grid grid-cols-3 gap-6">
-        <Card>
+        <Card className="hover:shadow-md transition-shadow">
           <CardContent className="p-6">
-            <div className="text-center">
-              <div className="text-3xl font-bold text-blue-600 mb-2">{summaryStats.errorClusters}</div>
-              <div className="text-sm text-gray-600">Error Clusters</div>
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center space-x-2">
+                <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
+                <span className="text-sm font-medium text-gray-600">Error Clusters</span>
+              </div>
+              <div className="text-2xl font-bold text-blue-600">{cardBreakdowns.errorClusters.total}</div>
+            </div>
+            <div className="space-y-2">
+              {cardBreakdowns.errorClusters.details.map((detail, index) => (
+                <div key={index} className="flex items-center justify-between text-sm">
+                  <span className="text-gray-600">{detail.label}</span>
+                  <span className={`font-semibold ${detail.color}`}>{detail.count}</span>
+                </div>
+              ))}
             </div>
           </CardContent>
         </Card>
-        <Card>
+        
+        <Card className="hover:shadow-md transition-shadow">
           <CardContent className="p-6">
-            <div className="text-center">
-              <div className="text-3xl font-bold text-red-600 mb-2">{summaryStats.failures}</div>
-              <div className="text-sm text-gray-600">Failures</div>
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center space-x-2">
+                <div className="w-3 h-3 bg-red-500 rounded-full"></div>
+                <span className="text-sm font-medium text-gray-600">Failures</span>
+              </div>
+              <div className="text-2xl font-bold text-red-600">{cardBreakdowns.failures.total}</div>
+            </div>
+            <div className="space-y-2">
+              {cardBreakdowns.failures.details.map((detail, index) => (
+                <div key={index} className="flex items-center justify-between text-sm">
+                  <span className="text-gray-600">{detail.label}</span>
+                  <span className={`font-semibold ${detail.color}`}>{detail.count}</span>
+                </div>
+              ))}
             </div>
           </CardContent>
         </Card>
-        <Card>
+        
+        <Card className="hover:shadow-md transition-shadow">
           <CardContent className="p-6">
-            <div className="text-center">
-              <div className="text-3xl font-bold text-orange-600 mb-2">{summaryStats.newFailures}</div>
-              <div className="text-sm text-gray-600">New Failures</div>
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center space-x-2">
+                <div className="w-3 h-3 bg-orange-500 rounded-full"></div>
+                <span className="text-sm font-medium text-gray-600">New Failures</span>
+              </div>
+              <div className="text-2xl font-bold text-orange-600">{cardBreakdowns.newFailures.total}</div>
+            </div>
+            <div className="space-y-2">
+              {cardBreakdowns.newFailures.details.map((detail, index) => (
+                <div key={index} className="flex items-center justify-between text-sm">
+                  <span className="text-gray-600">{detail.label}</span>
+                  <span className={`font-semibold ${detail.color}`}>{detail.count}</span>
+                </div>
+              ))}
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Error Analysis */}
+      {/* Compact Error Analysis */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center space-x-2">
@@ -418,35 +508,179 @@ export function PatternsAnomalies() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-2 gap-8">
-            <div>
-              <h4 className="font-medium mb-4">Error Clusters</h4>
-              <div className="space-y-3">
-                {errorClusters.map((cluster) => (
-                  <div key={cluster.name} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                    <div className="flex items-center space-x-3">
-                      <cluster.icon className="h-4 w-4 text-gray-500" />
-                      <span className="font-medium">{cluster.name}</span>
-                    </div>
-                    <Badge variant="secondary">{cluster.count} cases</Badge>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div>
-              <h4 className="font-medium mb-4">Related Testcases</h4>
-              <div className="space-y-2">
-                {relatedTestcases.map((testcase, index) => (
-                  <div key={index} className="flex justify-between items-center text-sm">
-                    <span className="text-red-500">→ {testcase.file}</span>
-                    <span className="text-gray-500">{testcase.description}</span>
-                    <span className="text-gray-400">{testcase.timeout}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
+          {/* Error Type Filters */}
+          <div className="flex flex-wrap gap-2 mb-4">
+            {errorClusters.map((cluster) => (
+              <button
+                key={cluster.name}
+                onClick={() => toggleErrorCluster(cluster.name)}
+                className={`px-3 py-1.5 rounded-full text-sm font-medium transition-all ${
+                  expandedErrorCluster === cluster.name
+                    ? 'bg-blue-100 text-blue-700 border border-blue-200'
+                    : 'bg-gray-100 text-gray-600 border border-gray-200 hover:bg-gray-200'
+                }`}
+              >
+                <div className="flex items-center space-x-2">
+                  <cluster.icon className="h-3 w-3" />
+                  <span>{cluster.name}</span>
+                  <Badge variant="secondary" className="text-xs h-4 px-1.5">
+                    {cluster.count}
+                  </Badge>
+                </div>
+              </button>
+            ))}
           </div>
+
+          {/* Test Cases Table */}
+          {expandedErrorCluster && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h4 className="font-medium text-gray-700">
+                  {expandedErrorCluster} - {errorClusters.find(c => c.name === expandedErrorCluster)?.count} test cases
+                </h4>
+                <div className="text-sm text-gray-500">
+                  Grouped by file name
+                </div>
+              </div>
+
+              {/* Enhanced Filters */}
+              <div className="flex flex-wrap items-center gap-4 p-3 bg-gray-50 rounded-lg">
+                {/* File Name Filter */}
+                <div className="flex items-center space-x-2">
+                  <Search className="h-4 w-4 text-gray-400" />
+                  <Input
+                    placeholder="Filter by file name..."
+                    value={fileNameFilter}
+                    onChange={(e) => setFileNameFilter(e.target.value)}
+                    className="h-8 w-48 text-xs"
+                  />
+                </div>
+
+                {/* Category Filter */}
+                <div className="flex items-center space-x-2">
+                  <span className="text-xs font-medium text-gray-600">Category:</span>
+                  <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                    <SelectTrigger className="h-8 w-32 text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All</SelectItem>
+                      <SelectItem value="bug">Bug</SelectItem>
+                      <SelectItem value="ui-change">UI Change</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Timeout Filter */}
+                <div className="flex items-center space-x-2">
+                  <span className="text-xs font-medium text-gray-600">Timeout:</span>
+                  <Select value={timeoutFilter} onValueChange={setTimeoutFilter}>
+                    <SelectTrigger className="h-8 w-32 text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All</SelectItem>
+                      <SelectItem value="short">Short (&lt; 1s)</SelectItem>
+                      <SelectItem value="medium">Medium (1-5s)</SelectItem>
+                      <SelectItem value="long">Long (&gt; 5s)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Clear Filters */}
+                {(fileNameFilter !== "" || categoryFilter !== "all" || timeoutFilter !== "all") && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setFileNameFilter("")
+                      setCategoryFilter("all")
+                      setTimeoutFilter("all")
+                    }}
+                    className="h-8 text-xs"
+                  >
+                    Clear Filters
+                  </Button>
+                )}
+              </div>
+
+              <div className="border rounded-lg overflow-hidden">
+                <table className="w-full">
+                  <thead className="bg-gray-50 border-b">
+                    <tr>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-600">Test Case</th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-600">File</th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-600">Category</th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-600">Timeout</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {errorClusters
+                      .find(cluster => cluster.name === expandedErrorCluster)
+                      ?.relatedTests
+                      .filter(test => {
+                        // File name filter
+                        const matchesFileName = fileNameFilter === "" || 
+                          test.file.toLowerCase().includes(fileNameFilter.toLowerCase())
+                        
+                        // Category filter
+                        const matchesCategory = categoryFilter === "all" || 
+                          test.category === categoryFilter
+                        
+                        // Timeout filter
+                        const matchesTimeout = (() => {
+                          if (timeoutFilter === "all") return true
+                          
+                          const timeoutValue = parseFloat(test.timeout.replace(/[^0-9.]/g, ''))
+                          const timeoutUnit = test.timeout.includes('m') ? 'minutes' : 'seconds'
+                          const timeoutInSeconds = timeoutUnit === 'minutes' ? timeoutValue * 60 : timeoutValue
+                          
+                          switch (timeoutFilter) {
+                            case "short": return timeoutInSeconds < 1
+                            case "medium": return timeoutInSeconds >= 1 && timeoutInSeconds <= 5
+                            case "long": return timeoutInSeconds > 5
+                            default: return true
+                          }
+                        })()
+                        
+                        return matchesFileName && matchesCategory && matchesTimeout
+                      })
+                      .sort((a, b) => a.file.localeCompare(b.file)) // Sort by file name
+                      .map((test, index) => (
+                        <tr key={index} className="hover:bg-gray-50 transition-colors">
+                          <td className="px-4 py-3">
+                            <span className="text-sm text-gray-700">
+                              {test.testName}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3">
+                            <span className="font-medium text-sm text-gray-900 font-mono">
+                              {test.file}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3">
+                            <Badge variant="outline" className={`text-xs ${
+                              test.category === 'bug' ? 'border-red-300 text-red-700 bg-red-50' :
+                              test.category === 'ui-change' ? 'border-blue-300 text-blue-700 bg-blue-50' :
+                              'border-gray-300 text-gray-700 bg-gray-50'
+                            }`}>
+                              {test.category === 'bug' ? 'Bug' : 
+                               test.category === 'ui-change' ? 'UI Change' : 
+                               test.category}
+                            </Badge>
+                          </td>
+                          <td className="px-4 py-3">
+                            <span className="text-xs text-gray-500 font-mono">
+                              {test.timeout}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -460,51 +694,94 @@ export function PatternsAnomalies() {
           <p className="text-sm text-gray-600">Failed or problematic test cases with identified patterns</p>
         </CardHeader>
         <CardContent>
-          {/* Compact Summary */}
+          {/* Enhanced Summary */}
           <div className="flex items-center space-x-6 mb-4 p-3 bg-gray-50 rounded-lg text-sm">
-            <span>📊 Total: {summaryStats.total}</span>
-            <span className="text-red-600">🔴 High: {summaryStats.highRisk}</span>
-            <span className="text-yellow-600">🟡 Medium: {summaryStats.mediumRisk}</span>
-            <span className="text-green-600">🟢 Low: {summaryStats.lowRisk}</span>
-            <span className="text-gray-500">|</span>
-            <span>⏱️ Execution: {summaryStats.timeoutCount}</span>
-            <span>🏃 Performance: {summaryStats.performanceCount}</span>
-            <span>💻 Environment: {summaryStats.environmentCount}</span>
+            <div className="flex items-center space-x-2">
+              <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+              <span>Total: {summaryStats.total}</span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+              <span className="text-red-600">High: {summaryStats.highRisk}</span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
+              <span className="text-yellow-600">Medium: {summaryStats.mediumRisk}</span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+              <span className="text-green-600">Low: {summaryStats.lowRisk}</span>
+            </div>
+            <div className="w-px h-4 bg-gray-300"></div>
+            <div className="flex items-center space-x-2">
+              <Clock className="h-3 w-3 text-gray-500" />
+              <span>Execution: {summaryStats.timeoutCount}</span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <Zap className="h-3 w-3 text-gray-500" />
+              <span>Performance: {summaryStats.performanceCount}</span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <Monitor className="h-3 w-3 text-gray-500" />
+              <span>Environment: {summaryStats.environmentCount}</span>
+            </div>
           </div>
 
-          {/* Filters and Search */}
-          <div className="flex flex-wrap gap-4 mb-6 p-4 bg-gray-50 rounded-lg">
+          {/* Enhanced Filters and Search */}
+          <div className="flex flex-wrap items-center gap-4 mb-6 p-4 bg-gray-50 rounded-lg">
             {/* Risk Level Filters */}
             <div className="flex items-center space-x-2">
               <Filter className="h-4 w-4 text-gray-500" />
-              <span className="text-sm font-medium">Risk:</span>
+              <span className="text-sm font-medium text-gray-600">
+                Risk: {riskFilters.size === 0 ? "All" : `${riskFilters.size} selected`}
+              </span>
               {["high", "medium", "low"].map((risk) => (
                 <Button
                   key={risk}
                   variant={riskFilters.has(risk) ? "default" : "outline"}
                   size="sm"
                   onClick={() => toggleRiskFilter(risk)}
-                  className={`h-7 px-2 text-xs ${
-                    risk === "high" ? "border-red-300" : risk === "medium" ? "border-yellow-300" : "border-green-300"
+                  className={`h-8 px-3 text-xs ${
+                    risk === "high" ? "border-red-300 hover:bg-red-50" : 
+                    risk === "medium" ? "border-yellow-300 hover:bg-yellow-50" : 
+                    "border-green-300 hover:bg-green-50"
                   }`}
                 >
-                  {risk === "high" ? "🔴" : risk === "medium" ? "🟡" : "🟢"} {risk}
+                  <div className="flex items-center space-x-1">
+                    <div className={`w-2 h-2 rounded-full ${
+                      risk === "high" ? "bg-red-500" : 
+                      risk === "medium" ? "bg-yellow-500" : 
+                      "bg-green-500"
+                    }`} />
+                    <span className="capitalize">{risk}</span>
+                  </div>
                 </Button>
               ))}
             </div>
 
             {/* Pattern Type Filters */}
             <div className="flex items-center space-x-2">
-              <span className="text-sm font-medium">Patterns:</span>
+              <span className="text-sm font-medium text-gray-600">
+                Patterns: {patternFilters.size === 0 ? "All" : `${patternFilters.size} selected`}
+              </span>
               {["execution", "performance", "environment"].map((pattern) => (
                 <Button
                   key={pattern}
                   variant={patternFilters.has(pattern) ? "default" : "outline"}
                   size="sm"
                   onClick={() => togglePatternFilter(pattern)}
-                  className="h-7 px-2 text-xs"
+                  className="h-8 px-3 text-xs"
                 >
-                  {pattern === "execution" ? "⏱️" : pattern === "performance" ? "🏃" : "💻"} {pattern}
+                  <div className="flex items-center space-x-1">
+                    {pattern === "execution" ? (
+                      <Clock className="h-3 w-3" />
+                    ) : pattern === "performance" ? (
+                      <Zap className="h-3 w-3" />
+                    ) : (
+                      <Monitor className="h-3 w-3" />
+                    )}
+                    <span className="capitalize">{pattern}</span>
+                  </div>
                 </Button>
               ))}
             </div>
@@ -512,19 +789,19 @@ export function PatternsAnomalies() {
             {/* Search */}
             <div className="flex items-center space-x-2 flex-1 min-w-[200px]">
               <div className="relative flex-1">
-                <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                 <Input
-                  placeholder="Search tests..."
+                  placeholder="Search test cases..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-8 h-7 text-xs"
+                  className="pl-10 h-8 text-sm"
                 />
               </div>
             </div>
 
             {/* Sort */}
             <Select value={sortBy} onValueChange={setSortBy}>
-              <SelectTrigger className="w-32 h-7 text-xs">
+              <SelectTrigger className="w-36 h-8 text-sm">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -533,24 +810,72 @@ export function PatternsAnomalies() {
                 <SelectItem value="name">Name</SelectItem>
               </SelectContent>
             </Select>
+
+            {/* Clear Filters */}
+            {(searchTerm !== "" || riskFilters.size > 0 || patternFilters.size > 0) && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setSearchTerm("")
+                  setRiskFilters(new Set())
+                  setPatternFilters(new Set())
+                }}
+                className="h-8 text-xs"
+              >
+                Clear All
+              </Button>
+            )}
           </div>
 
-          {/* Test List */}
-          <div className="space-y-2">
-            <div className="border rounded-lg divide-y divide-gray-100 max-h-200 overflow-y-auto">
-              {filteredAndSortedTests.map((test) => (
-                <div key={test.id} className="p-3 hover:bg-gray-50 transition-colors">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-3 flex-1">
-                      <span className="text-lg">{getStatusIcon(test.status)}</span>
-
-                      <div className="flex-1">
+          {/* Test Cases Table */}
+          <div className="border rounded-lg overflow-hidden">
+            <table className="w-full">
+              <thead className="bg-gray-50 border-b">
+                <tr>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-600">Test Case</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-600">File</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-600">Duration</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-600">Status</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-600">Risk</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-600">Patterns</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-600">Details</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {filteredAndSortedTests.map((test) => (
+                  <React.Fragment key={test.id}>
+                    <tr className="hover:bg-gray-50 transition-colors">
+                      <td className="px-4 py-3">
+                        <span className="text-sm text-gray-700 font-medium">
+                          {test.name}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className="font-medium text-sm text-gray-900 font-mono">
+                          {test.spec}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className="text-xs text-gray-500 font-mono">
+                          {test.duration}s
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
                         <div className="flex items-center space-x-2">
-                          <span className="font-medium text-sm">{test.name}</span>
-                          <span className="text-xs text-gray-500 font-mono">({test.duration}s)</span>
+                          <span className="text-lg">{getStatusIcon(test.status)}</span>
+                          <span className="text-xs text-gray-600 capitalize">
+                            {test.status}
+                          </span>
                         </div>
-
-                        <div className="flex items-center space-x-2 mt-1">
+                      </td>
+                      <td className="px-4 py-3">
+                        <Badge className={`text-xs ${getRiskColor(test.riskLevel)}`}>
+                          {test.riskLevel}
+                        </Badge>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex flex-wrap gap-1">
                           {test.patterns.map((pattern, idx) => (
                             <Badge key={idx} variant="outline" className="text-xs h-5 px-1">
                               {getPatternIcon(pattern.type)}
@@ -558,54 +883,60 @@ export function PatternsAnomalies() {
                             </Badge>
                           ))}
                         </div>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center space-x-2">
-                      <Badge className={`text-xs ${getRiskColor(test.riskLevel)}`}>{test.riskLevel} Risk</Badge>
-
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => toggleTestExpansion(test.id)}
-                        className="h-6 w-6 p-0"
-                      >
-                        {expandedTests.has(test.id) ? (
-                          <ChevronUp className="h-3 w-3" />
-                        ) : (
-                          <ChevronDown className="h-3 w-3" />
-                        )}
-                      </Button>
-                    </div>
-                  </div>
-
-                  {expandedTests.has(test.id) && (
-                    <div className="mt-3 pt-3 border-t border-gray-100 space-y-2">
-                      <div className="text-xs text-gray-600">
-                        <strong>Environment:</strong> {test.environment.os} - {test.environment.browser}{" "}
-                        {test.environment.version}
-                      </div>
-
-                      {test.patterns.map((pattern, idx) => (
-                        <div key={idx} className="p-2 bg-gray-50 rounded text-xs">
-                          <div className="flex items-center space-x-2 mb-1">
-                            {getPatternIcon(pattern.type)}
-                            <span className="font-medium capitalize">{pattern.type} Issue</span>
-                            <Badge variant="outline" className="text-xs h-4">
-                              {pattern.severity}
-                            </Badge>
+                      </td>
+                      <td className="px-4 py-3">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => toggleTestExpansion(test.id)}
+                          className="h-6 w-6 p-0"
+                        >
+                          {expandedTests.has(test.id) ? (
+                            <ChevronUp className="h-3 w-3" />
+                          ) : (
+                            <ChevronDown className="h-3 w-3" />
+                          )}
+                        </Button>
+                      </td>
+                    </tr>
+                    
+                    {/* Expanded Details Row */}
+                    {expandedTests.has(test.id) && (
+                      <tr>
+                        <td colSpan={7} className="px-4 py-3 bg-gray-50">
+                          <div className="space-y-3">
+                            {/* Environment Info */}
+                            <div className="flex items-center space-x-4 text-xs text-gray-600">
+                              <span><strong>Environment:</strong> {test.environment.os} - {test.environment.browser} {test.environment.version}</span>
+                              <span><strong>Last Run:</strong> {new Date(test.lastRun).toLocaleDateString()}</span>
+                            </div>
+                            
+                            {/* Pattern Details */}
+                            <div className="space-y-3">
+                              {test.patterns.map((pattern, idx) => (
+                                <div key={idx} className="border-l-4 border-gray-200 pl-4">
+                                  <div className="flex items-center space-x-2 mb-1">
+                                    {getPatternIcon(pattern.type)}
+                                    <span className="font-medium text-sm capitalize">{pattern.type} Issue</span>
+                                    <Badge variant="outline" className="text-xs h-4">
+                                      {pattern.severity}
+                                    </Badge>
+                                  </div>
+                                  <p className="text-sm text-gray-600 mb-1">{pattern.description}</p>
+                                  <p className="text-sm text-blue-600">
+                                    <strong>Recommendation:</strong> {pattern.recommendation}
+                                  </p>
+                                </div>
+                              ))}
+                            </div>
                           </div>
-                          <p className="text-gray-600 mb-1">{pattern.description}</p>
-                          <p className="text-blue-600">
-                            <strong>Recommendation:</strong> {pattern.recommendation}
-                          </p>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
+                        </td>
+                      </tr>
+                    )}
+                  </React.Fragment>
+                ))}
+              </tbody>
+            </table>
           </div>
         </CardContent>
       </Card>
