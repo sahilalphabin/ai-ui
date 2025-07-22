@@ -375,13 +375,13 @@ export function PatternsAnomalies() {
       count: 7, 
       icon: Clock,
       relatedTests: [
-        { file: "sow.spec.js", testName: "duplicate SoW name", timeout: "4.2m timeout", category: "bug", link: "#test-sow-duplicate" },
-        { file: "sow.spec.js", testName: "Pause Upload", timeout: "4.2m timeout", category: "bug", link: "#test-sow-upload" },
-        { file: "task.spec.js", testName: "Move to Done", timeout: "4.2m timeout", category: "bug", link: "#test-task-done" },
-        { file: "project.spec.js", testName: "Create new project", timeout: "3.1m timeout", category: "ui-change", link: "#test-project-create" },
-        { file: "workstream.spec.js", testName: "Archive workstream", timeout: "5.0m timeout", category: "bug", link: "#test-workstream-archive" },
-        { file: "upload.spec.js", testName: "File upload process", timeout: "2.8m timeout", category: "ui-change", link: "#test-upload-process" },
-        { file: "auth.spec.js", testName: "User authentication", timeout: "1.9m timeout", category: "bug", link: "#test-auth" }
+        { file: "sow.spec.js", testName: "duplicate SoW name", duration: "4.2m", category: "bug", link: "#test-sow-duplicate" },
+        { file: "sow.spec.js", testName: "Pause Upload", duration: "4.2m", category: "bug", link: "#test-sow-upload" },
+        { file: "task.spec.js", testName: "Move to Done", duration: "4.2m", category: "bug", link: "#test-task-done" },
+        { file: "project.spec.js", testName: "Create new project", duration: "3.1m", category: "ui-change", link: "#test-project-create" },
+        { file: "workstream.spec.js", testName: "Archive workstream", duration: "5.0m", category: "bug", link: "#test-workstream-archive" },
+        { file: "upload.spec.js", testName: "File upload process", duration: "2.8m", category: "ui-change", link: "#test-upload-process" },
+        { file: "auth.spec.js", testName: "User authentication", duration: "1.9m", category: "bug", link: "#test-auth" }
       ]
     },
     { 
@@ -389,8 +389,8 @@ export function PatternsAnomalies() {
       count: 2, 
       icon: Key,
       relatedTests: [
-        { file: "validation.spec.js", testName: "Form validation", timeout: "0.5s", category: "bug", link: "#test-validation" },
-        { file: "api.spec.js", testName: "API response check", timeout: "1.2s", category: "ui-change", link: "#test-api" }
+        { file: "validation.spec.js", testName: "Form validation", duration: "0.5s", category: "bug", link: "#test-validation" },
+        { file: "api.spec.js", testName: "API response check", duration: "1.2s", category: "ui-change", link: "#test-api" }
       ]
     },
   ]
@@ -571,9 +571,9 @@ export function PatternsAnomalies() {
                   </Select>
                 </div>
 
-                {/* Timeout Filter */}
+                {/* Duration Filter */}
                 <div className="flex items-center space-x-2">
-                  <span className="text-xs font-medium text-gray-600">Timeout:</span>
+                  <span className="text-xs font-medium text-gray-600">Duration:</span>
                   <Select value={timeoutFilter} onValueChange={setTimeoutFilter}>
                     <SelectTrigger className="h-8 w-32 text-xs">
                       <SelectValue />
@@ -611,7 +611,7 @@ export function PatternsAnomalies() {
                       <th className="px-4 py-2 text-left text-xs font-medium text-gray-600">Test Case</th>
                       <th className="px-4 py-2 text-left text-xs font-medium text-gray-600">File</th>
                       <th className="px-4 py-2 text-left text-xs font-medium text-gray-600">Category</th>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-600">Timeout</th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-600">Duration</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
@@ -627,23 +627,23 @@ export function PatternsAnomalies() {
                         const matchesCategory = categoryFilter === "all" || 
                           test.category === categoryFilter
                         
-                        // Timeout filter
-                        const matchesTimeout = (() => {
+                        // Duration filter
+                        const matchesDuration = (() => {
                           if (timeoutFilter === "all") return true
                           
-                          const timeoutValue = parseFloat(test.timeout.replace(/[^0-9.]/g, ''))
-                          const timeoutUnit = test.timeout.includes('m') ? 'minutes' : 'seconds'
-                          const timeoutInSeconds = timeoutUnit === 'minutes' ? timeoutValue * 60 : timeoutValue
+                          const durationValue = parseFloat(test.duration.replace(/[^0-9.]/g, ''))
+                          const durationUnit = test.duration.includes('m') ? 'minutes' : 'seconds'
+                          const durationInSeconds = durationUnit === 'minutes' ? durationValue * 60 : durationValue
                           
                           switch (timeoutFilter) {
-                            case "short": return timeoutInSeconds < 1
-                            case "medium": return timeoutInSeconds >= 1 && timeoutInSeconds <= 5
-                            case "long": return timeoutInSeconds > 5
+                            case "short": return durationInSeconds < 1
+                            case "medium": return durationInSeconds >= 1 && durationInSeconds <= 5
+                            case "long": return durationInSeconds > 5
                             default: return true
                           }
                         })()
                         
-                        return matchesFileName && matchesCategory && matchesTimeout
+                        return matchesFileName && matchesCategory && matchesDuration
                       })
                       .sort((a, b) => a.file.localeCompare(b.file)) // Sort by file name
                       .map((test, index) => (
@@ -671,7 +671,7 @@ export function PatternsAnomalies() {
                           </td>
                           <td className="px-4 py-3">
                             <span className="text-xs text-gray-500 font-mono">
-                              {test.timeout}
+                              {test.duration}
                             </span>
                           </td>
                         </tr>
