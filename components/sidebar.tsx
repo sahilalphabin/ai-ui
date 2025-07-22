@@ -1,9 +1,14 @@
 "use client"
 
 import { Button } from "@/components/ui/button"
-import { BarChart3, Settings, TestTube, GitPullRequest, Brain } from "lucide-react"
+import { BarChart3, Settings, TestTube, GitPullRequest, Brain, TrendingUp } from "lucide-react"
 
-export function Sidebar() {
+interface SidebarProps {
+  onPageChange: (page: string) => void
+  currentPage: string
+}
+
+export function Sidebar({ onPageChange, currentPage }: SidebarProps) {
   return (
     <div className="w-64 bg-white border-r border-gray-200 flex flex-col">
       {/* Brand */}
@@ -35,7 +40,11 @@ export function Sidebar() {
         <div>
           <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Insights</h3>
           <div className="space-y-1">
-            <Button variant="ghost" className="w-full justify-start">
+            <Button 
+              variant={currentPage === "ai-insights" ? "secondary" : "ghost"}
+              className={`w-full justify-start ${currentPage === "ai-insights" ? "bg-blue-50 text-blue-700 hover:bg-blue-100" : ""}`}
+              onClick={() => onPageChange("ai-insights")}
+            >
               <Brain className="mr-3 h-4 w-4" />
               AI Insights
             </Button>
@@ -53,6 +62,14 @@ export function Sidebar() {
             <Button variant="ghost" className="w-full justify-start">
               <Settings className="mr-3 h-4 w-4" />
               Settings
+            </Button>
+            <Button 
+              variant={currentPage === "test-run-insights" ? "secondary" : "ghost"}
+              className={`w-full justify-start ${currentPage === "test-run-insights" ? "bg-blue-50 text-blue-700 hover:bg-blue-100" : ""}`}
+              onClick={() => onPageChange("test-run-insights")}
+            >
+              <TrendingUp className="mr-3 h-4 w-4" />
+              Test Run Insights
             </Button>
           </div>
         </div>
