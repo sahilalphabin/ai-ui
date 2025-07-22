@@ -2,7 +2,7 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { AlertTriangle, AlertCircle } from "lucide-react"
+import { AlertTriangle, AlertCircle, CheckCircle, Clock, XCircle, MinusCircle } from "lucide-react"
 
 export function CoverageGaps() {
   const coverageStats = [
@@ -15,65 +15,107 @@ export function CoverageGaps() {
   const moduleData = [
     {
       module: "Authentication",
-      functional: 95,
-      edgeCases: 60,
-      integration: 30,
-      endToEnd: 70,
-      tests: "2 / 2",
+      functional: { total: 8, passing: 8, failing: 0, skipped: 0 },
+      edgeCases: { total: 5, passing: 4, failing: 1, skipped: 0 },
+      integration: { total: 3, passing: 2, failing: 0, skipped: 1 },
+      endToEnd: { total: 4, passing: 4, failing: 0, skipped: 0 },
+      totalTests: "20/20",
       status: "Complete",
       statusColor: "bg-green-500",
       critical: false,
+      lastRun: "2024-01-15",
+      failureRate: "5%",
+      trend: "stable"
     },
     {
       module: "Task Management",
-      functional: 85,
-      edgeCases: 65,
-      integration: 45,
-      endToEnd: 25,
-      tests: "38 / 47",
-      status: "In Progress",
-      statusColor: "bg-orange-500",
+      functional: { total: 15, passing: 12, failing: 2, skipped: 1 },
+      edgeCases: { total: 12, passing: 8, failing: 3, skipped: 1 },
+      integration: { total: 8, passing: 5, failing: 2, skipped: 1 },
+      endToEnd: { total: 12, passing: 7, failing: 4, skipped: 1 },
+      totalTests: "47/47",
+      status: "Needs Attention",
+      statusColor: "bg-red-500",
       critical: true,
+      lastRun: "2024-01-14",
+      failureRate: "23%",
+      trend: "increasing"
     },
     {
       module: "Scope of Work",
-      functional: 75,
-      edgeCases: 40,
-      integration: 55,
-      endToEnd: 35,
-      tests: "16 / 21",
+      functional: { total: 10, passing: 8, failing: 1, skipped: 1 },
+      edgeCases: { total: 8, passing: 5, failing: 2, skipped: 1 },
+      integration: { total: 6, passing: 4, failing: 1, skipped: 1 },
+      endToEnd: { total: 7, passing: 4, failing: 2, skipped: 1 },
+      totalTests: "31/31",
       status: "In Progress",
       statusColor: "bg-orange-500",
       critical: true,
+      lastRun: "2024-01-13",
+      failureRate: "19%",
+      trend: "stable"
     },
     {
       module: "Project Management",
-      functional: 80,
-      edgeCases: 50,
-      integration: 40,
-      endToEnd: 30,
-      tests: "2 / 5",
+      functional: { total: 6, passing: 5, failing: 0, skipped: 1 },
+      edgeCases: { total: 4, passing: 3, failing: 0, skipped: 1 },
+      integration: { total: 3, passing: 2, failing: 0, skipped: 1 },
+      endToEnd: { total: 3, passing: 2, failing: 0, skipped: 1 },
+      totalTests: "16/16",
       status: "In Progress",
       statusColor: "bg-orange-500",
       critical: false,
+      lastRun: "2024-01-12",
+      failureRate: "6%",
+      trend: "decreasing"
     },
     {
       module: "Product Management",
-      functional: 90,
-      edgeCases: 55,
-      integration: 35,
-      endToEnd: 25,
-      tests: "3 / 3",
+      functional: { total: 7, passing: 7, failing: 0, skipped: 0 },
+      edgeCases: { total: 5, passing: 4, failing: 0, skipped: 1 },
+      integration: { total: 4, passing: 3, failing: 0, skipped: 1 },
+      endToEnd: { total: 3, passing: 2, failing: 0, skipped: 1 },
+      totalTests: "19/19",
       status: "Complete",
       statusColor: "bg-green-500",
       critical: false,
+      lastRun: "2024-01-15",
+      failureRate: "5%",
+      trend: "stable"
     },
   ]
 
-  const getProgressColor = (percentage: number) => {
-    if (percentage >= 80) return "bg-green-500"
-    if (percentage >= 60) return "bg-yellow-500"
-    return "bg-red-500"
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case "Complete":
+        return <CheckCircle className="h-4 w-4 text-green-600" />
+      case "In Progress":
+        return <Clock className="h-4 w-4 text-orange-600" />
+      case "Needs Attention":
+        return <XCircle className="h-4 w-4 text-red-600" />
+      default:
+        return <MinusCircle className="h-4 w-4 text-gray-600" />
+    }
+  }
+
+  const getTrendText = (trend: string) => {
+    switch (trend) {
+      case "increasing":
+        return "↗️ Increasing"
+      case "decreasing":
+        return "↘️ Decreasing"
+      case "stable":
+        return "→ Stable"
+      default:
+        return "→ Stable"
+    }
+  }
+
+  const getTestCategoryColor = (category: any) => {
+    const passRate = (category.passing / category.total) * 100
+    if (passRate >= 90) return "text-green-600"
+    if (passRate >= 70) return "text-orange-600"
+    return "text-red-600"
   }
 
   return (
@@ -88,7 +130,7 @@ export function CoverageGaps() {
       </div>
 
       {/* Coverage Stats */}
-      <div className="grid grid-cols-4 gap-6">
+      <div className="grid grid-cols-6 gap-6">
         {coverageStats.map((stat) => (
           <Card key={stat.label}>
             <CardContent className="p-6">
@@ -100,6 +142,28 @@ export function CoverageGaps() {
             </CardContent>
           </Card>
         ))}
+        
+        {/* Branch Failure Rate */}
+        <Card>
+          <CardContent className="p-6">
+            <div className="text-center">
+              <div className="text-3xl font-bold mb-2 text-red-600">14.7%</div>
+              <div className="text-sm text-gray-600 mb-3">Branch Failure Rate</div>
+              <div className="h-1 w-full bg-red-500 rounded"></div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Branch Trend */}
+        <Card>
+          <CardContent className="p-6">
+            <div className="text-center">
+              <div className="text-3xl font-bold mb-2 text-orange-600">↗️</div>
+              <div className="text-sm text-gray-600 mb-3">Branch Trend</div>
+              <div className="h-1 w-full bg-orange-500 rounded"></div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Module Coverage Matrix */}
@@ -115,70 +179,102 @@ export function CoverageGaps() {
                   <th className="text-left py-3 px-4 font-medium">Module</th>
                   <th className="text-left py-3 px-4 font-medium">Functional</th>
                   <th className="text-left py-3 px-4 font-medium">Edge Cases</th>
-                  <th className="text-left py-3 px-4 font-medium">Integration</th>
                   <th className="text-left py-3 px-4 font-medium">End-to-End</th>
-                  <th className="text-left py-3 px-4 font-medium">Tests</th>
+                  <th className="text-left py-3 px-4 font-medium">Total Tests</th>
+                  <th className="text-left py-3 px-4 font-medium">Last Run</th>
+                  <th className="text-left py-3 px-4 font-medium">Failure Rate</th>
+                  <th className="text-left py-3 px-4 font-medium">Trend</th>
                   <th className="text-left py-3 px-4 font-medium">Status</th>
                 </tr>
               </thead>
               <tbody>
                 {moduleData.map((module) => (
-                  <tr key={module.module} className="border-b border-gray-100">
+                  <tr key={module.module} className="border-b border-gray-100 hover:bg-gray-50">
                     <td className="py-4 px-4">
                       <div className="flex items-center space-x-2">
-                        {module.critical && <div className="w-2 h-2 bg-red-500 rounded-full"></div>}
+                        {module.critical && <div className="w-2 h-2 bg-red-500 rounded-full" title="Critical issues requiring immediate attention"></div>}
                         <span className="font-medium">{module.module}</span>
                       </div>
                     </td>
                     <td className="py-4 px-4">
-                      <div className="flex items-center space-x-2">
-                        <span className="text-sm font-medium">{module.functional}%</span>
-                        <div className="w-20 h-2 bg-gray-200 rounded-full">
-                          <div
-                            className={`h-2 rounded-full ${getProgressColor(module.functional)}`}
-                            style={{ width: `${module.functional}%` }}
-                          ></div>
+                      <div className="flex flex-col space-y-1">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-medium">{module.functional.total} tests</span>
+                          <span className="text-xs text-gray-500">{module.functional.passing}/{module.functional.total}</span>
+                        </div>
+                        <div className="w-24 h-2 bg-gray-200 rounded-full overflow-hidden" title="Green: Passing, Red: Failing, Gray: Skipped">
+                          <div className="flex h-full">
+                            <div className="bg-green-500" style={{ width: `${(module.functional.passing / module.functional.total) * 100}%` }}></div>
+                            <div className="bg-red-500" style={{ width: `${(module.functional.failing / module.functional.total) * 100}%` }}></div>
+                            <div className="bg-gray-400" style={{ width: `${(module.functional.skipped / module.functional.total) * 100}%` }}></div>
+                          </div>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="py-4 px-4">
+                      <div className="flex flex-col space-y-1">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-medium">{module.edgeCases.total} tests</span>
+                          <span className="text-xs text-gray-500">{module.edgeCases.passing}/{module.edgeCases.total}</span>
+                        </div>
+                        <div className="w-24 h-2 bg-gray-200 rounded-full overflow-hidden" title="Green: Passing, Red: Failing, Gray: Skipped">
+                          <div className="flex h-full">
+                            <div className="bg-green-500" style={{ width: `${(module.edgeCases.passing / module.edgeCases.total) * 100}%` }}></div>
+                            <div className="bg-red-500" style={{ width: `${(module.edgeCases.failing / module.edgeCases.total) * 100}%` }}></div>
+                            <div className="bg-gray-400" style={{ width: `${(module.edgeCases.skipped / module.edgeCases.total) * 100}%` }}></div>
+                          </div>
+                        </div>
+                      </div>
+                    </td>
+
+                    <td className="py-4 px-4">
+                      <div className="flex flex-col space-y-1">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-medium">{module.endToEnd.total} tests</span>
+                          <span className="text-xs text-gray-500">{module.endToEnd.passing}/{module.endToEnd.total}</span>
+                        </div>
+                        <div className="w-24 h-2 bg-gray-200 rounded-full overflow-hidden" title="Green: Passing, Red: Failing, Gray: Skipped">
+                          <div className="flex h-full">
+                            <div className="bg-green-500" style={{ width: `${(module.endToEnd.passing / module.endToEnd.total) * 100}%` }}></div>
+                            <div className="bg-red-500" style={{ width: `${(module.endToEnd.failing / module.endToEnd.total) * 100}%` }}></div>
+                            <div className="bg-gray-400" style={{ width: `${(module.endToEnd.skipped / module.endToEnd.total) * 100}%` }}></div>
+                          </div>
                         </div>
                       </div>
                     </td>
                     <td className="py-4 px-4">
                       <div className="flex items-center space-x-2">
-                        <span className="text-sm font-medium">{module.edgeCases}%</span>
-                        <div className="w-20 h-2 bg-gray-200 rounded-full">
-                          <div
-                            className={`h-2 rounded-full ${getProgressColor(module.edgeCases)}`}
-                            style={{ width: `${module.edgeCases}%` }}
-                          ></div>
+                        <span className="text-sm font-medium">{module.totalTests}</span>
+                        <div className="w-16 h-2 bg-gray-200 rounded-full overflow-hidden" title="Green: Passing, Red: Failing, Gray: Skipped">
+                          <div className="flex h-full">
+                            <div className="bg-green-500" style={{ width: `${(module.functional.passing + module.edgeCases.passing + module.endToEnd.passing) / (module.functional.total + module.edgeCases.total + module.endToEnd.total) * 100}%` }}></div>
+                            <div className="bg-red-500" style={{ width: `${(module.functional.failing + module.edgeCases.failing + module.endToEnd.failing) / (module.functional.total + module.edgeCases.total + module.endToEnd.total) * 100}%` }}></div>
+                            <div className="bg-gray-400" style={{ width: `${(module.functional.skipped + module.edgeCases.skipped + module.endToEnd.skipped) / (module.functional.total + module.edgeCases.total + module.endToEnd.total) * 100}%` }}></div>
+                          </div>
                         </div>
                       </div>
+                    </td>
+                    <td className="py-4 px-4">
+                      <span className="text-sm text-gray-600">{new Date(module.lastRun).toLocaleDateString()}</span>
+                    </td>
+                    <td className="py-4 px-4">
+                      <span className={`text-sm font-medium ${
+                        parseFloat(module.failureRate) > 20 ? 'text-red-600' :
+                        parseFloat(module.failureRate) > 10 ? 'text-orange-600' : 'text-green-600'
+                      }`} title="Percentage of tests that failed in the last run">
+                        {module.failureRate}
+                      </span>
+                    </td>
+                    <td className="py-4 px-4">
+                      <span className="text-xs text-gray-500" title="Test failure trend over time">
+                        {getTrendText(module.trend)}
+                      </span>
                     </td>
                     <td className="py-4 px-4">
                       <div className="flex items-center space-x-2">
-                        <span className="text-sm font-medium">{module.integration}%</span>
-                        <div className="w-20 h-2 bg-gray-200 rounded-full">
-                          <div
-                            className={`h-2 rounded-full ${getProgressColor(module.integration)}`}
-                            style={{ width: `${module.integration}%` }}
-                          ></div>
-                        </div>
+                        {getStatusIcon(module.status)}
+                        <Badge className={`text-white ${module.statusColor}`} title={`Module status: ${module.status}`}>{module.status}</Badge>
                       </div>
-                    </td>
-                    <td className="py-4 px-4">
-                      <div className="flex items-center space-x-2">
-                        <span className="text-sm font-medium">{module.endToEnd}%</span>
-                        <div className="w-20 h-2 bg-gray-200 rounded-full">
-                          <div
-                            className={`h-2 rounded-full ${getProgressColor(module.endToEnd)}`}
-                            style={{ width: `${module.endToEnd}%` }}
-                          ></div>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="py-4 px-4">
-                      <span className="text-sm text-gray-600">{module.tests}</span>
-                    </td>
-                    <td className="py-4 px-4">
-                      <Badge className={`text-white ${module.statusColor}`}>{module.status}</Badge>
                     </td>
                   </tr>
                 ))}
@@ -188,70 +284,7 @@ export function CoverageGaps() {
         </CardContent>
       </Card>
 
-      {/* Coverage Gaps */}
-      <div className="grid grid-cols-2 gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center space-x-2 text-red-600">
-              <AlertCircle className="h-5 w-5" />
-              <span>Critical Coverage Gaps</span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <h4 className="font-medium">File Upload Operations</h4>
-                <Badge variant="destructive">High Impact</Badge>
-              </div>
-              <p className="text-sm text-gray-600 mb-2">Multiple file upload tests failing or skipped</p>
-              <div className="text-xs text-gray-500 mb-2">
-                <strong>Affected Tests:</strong> sow.spec.js, task.spec.js
-              </div>
-              <p className="text-xs text-gray-600">
-                <strong>Recommendation:</strong> Implement retry mechanism and better error handling
-              </p>
-            </div>
 
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <h4 className="font-medium">Task State Transitions</h4>
-                <Badge variant="destructive">High Impact</Badge>
-              </div>
-              <p className="text-sm text-gray-600 mb-2">Edge cases in task movement between states not fully covered</p>
-              <div className="text-xs text-gray-500 mb-2">
-                <strong>Affected Tests:</strong> task.spec.js
-              </div>
-              <p className="text-xs text-gray-600">
-                <strong>Recommendation:</strong> Add more test cases for complex state transitions
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center space-x-2 text-orange-600">
-              <AlertTriangle className="h-5 w-5" />
-              <span>Moderate Coverage Gaps</span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <h4 className="font-medium">Project Operations</h4>
-                <Badge className="bg-orange-500 text-white">Medium Impact</Badge>
-              </div>
-              <p className="text-sm text-gray-600 mb-2">Several project management tests skipped</p>
-              <div className="text-xs text-gray-500 mb-2">
-                <strong>Affected Tests:</strong> project.spec.js
-              </div>
-              <p className="text-xs text-gray-600">
-                <strong>Recommendation:</strong> Complete implementation of skipped tests
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
     </div>
   )
 }

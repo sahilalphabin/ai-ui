@@ -25,15 +25,15 @@ export function MainContent({ activeTab, setActiveTab }: MainContentProps) {
             <span>🎯</span>
             <span>Coverage & Gaps</span>
           </TabsTrigger>
-          <TabsTrigger value="predictive" className="flex items-center space-x-2">
+          <TabsTrigger value="predictive" className="flex items-center space-x-2" disabled>
             <span>🔮</span>
             <span>Predictive Analysis</span>
           </TabsTrigger>
-          <TabsTrigger value="recommendations" className="flex items-center space-x-2">
+          <TabsTrigger value="recommendations" className="flex items-center space-x-2" disabled>
             <span>💡</span>
             <span>Recommendations</span>
           </TabsTrigger>
-          <TabsTrigger value="business" className="flex items-center space-x-2">
+          <TabsTrigger value="business" className="flex items-center space-x-2" disabled>
             <span>💼</span>
             <span>Business Impact</span>
           </TabsTrigger>

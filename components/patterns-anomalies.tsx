@@ -510,7 +510,7 @@ export function PatternsAnomalies() {
         <CardContent>
           {/* Error Type Filters */}
           <div className="flex flex-wrap gap-2 mb-4">
-            {errorClusters.map((cluster) => (
+                {errorClusters.map((cluster) => (
               <button
                 key={cluster.name}
                 onClick={() => toggleErrorCluster(cluster.name)}
@@ -529,7 +529,7 @@ export function PatternsAnomalies() {
                 </div>
               </button>
             ))}
-          </div>
+                    </div>
 
           {/* Test Cases Table */}
           {expandedErrorCluster && (
@@ -540,7 +540,7 @@ export function PatternsAnomalies() {
                 </h4>
                 <div className="text-sm text-gray-500">
                   Grouped by file name
-                </div>
+                  </div>
               </div>
 
               {/* Enhanced Filters */}
@@ -585,7 +585,7 @@ export function PatternsAnomalies() {
                       <SelectItem value="long">Long (&gt; 5s)</SelectItem>
                     </SelectContent>
                   </Select>
-                </div>
+            </div>
 
                 {/* Clear Filters */}
                 {(fileNameFilter !== "" || categoryFilter !== "all" || timeoutFilter !== "all") && (
@@ -602,7 +602,7 @@ export function PatternsAnomalies() {
                     Clear Filters
                   </Button>
                 )}
-              </div>
+                  </div>
 
               <div className="border rounded-lg overflow-hidden">
                 <table className="w-full">
@@ -843,7 +843,7 @@ export function PatternsAnomalies() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {filteredAndSortedTests.map((test) => (
+              {filteredAndSortedTests.map((test) => (
                   <React.Fragment key={test.id}>
                     <tr className="hover:bg-gray-50 transition-colors">
                       <td className="px-4 py-3">
@@ -885,23 +885,23 @@ export function PatternsAnomalies() {
                         </div>
                       </td>
                       <td className="px-4 py-3">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => toggleTestExpansion(test.id)}
-                          className="h-6 w-6 p-0"
-                        >
-                          {expandedTests.has(test.id) ? (
-                            <ChevronUp className="h-3 w-3" />
-                          ) : (
-                            <ChevronDown className="h-3 w-3" />
-                          )}
-                        </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => toggleTestExpansion(test.id)}
+                        className="h-6 w-6 p-0"
+                      >
+                        {expandedTests.has(test.id) ? (
+                          <ChevronUp className="h-3 w-3" />
+                        ) : (
+                          <ChevronDown className="h-3 w-3" />
+                        )}
+                      </Button>
                       </td>
                     </tr>
-                    
+
                     {/* Expanded Details Row */}
-                    {expandedTests.has(test.id) && (
+                  {expandedTests.has(test.id) && (
                       <tr>
                         <td colSpan={7} className="px-4 py-3 bg-gray-50">
                           <div className="space-y-3">
@@ -909,32 +909,32 @@ export function PatternsAnomalies() {
                             <div className="flex items-center space-x-4 text-xs text-gray-600">
                               <span><strong>Environment:</strong> {test.environment.os} - {test.environment.browser} {test.environment.version}</span>
                               <span><strong>Last Run:</strong> {new Date(test.lastRun).toLocaleDateString()}</span>
-                            </div>
-                            
+                      </div>
+
                             {/* Pattern Details */}
                             <div className="space-y-3">
-                              {test.patterns.map((pattern, idx) => (
+                      {test.patterns.map((pattern, idx) => (
                                 <div key={idx} className="border-l-4 border-gray-200 pl-4">
-                                  <div className="flex items-center space-x-2 mb-1">
-                                    {getPatternIcon(pattern.type)}
+                          <div className="flex items-center space-x-2 mb-1">
+                            {getPatternIcon(pattern.type)}
                                     <span className="font-medium text-sm capitalize">{pattern.type} Issue</span>
-                                    <Badge variant="outline" className="text-xs h-4">
-                                      {pattern.severity}
-                                    </Badge>
-                                  </div>
+                            <Badge variant="outline" className="text-xs h-4">
+                              {pattern.severity}
+                            </Badge>
+                          </div>
                                   <p className="text-sm text-gray-600 mb-1">{pattern.description}</p>
                                   <p className="text-sm text-blue-600">
-                                    <strong>Recommendation:</strong> {pattern.recommendation}
-                                  </p>
-                                </div>
-                              ))}
-                            </div>
+                            <strong>Recommendation:</strong> {pattern.recommendation}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
                           </div>
                         </td>
                       </tr>
-                    )}
+                  )}
                   </React.Fragment>
-                ))}
+              ))}
               </tbody>
             </table>
           </div>
