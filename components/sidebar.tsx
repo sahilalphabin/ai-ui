@@ -1,7 +1,7 @@
 "use client"
 
 import { Button } from "@/components/ui/button"
-import { BarChart3, Settings, TestTube, GitPullRequest, Brain, TrendingUp } from "lucide-react"
+import { BarChart3, Settings, TestTube, GitPullRequest, Brain, TrendingUp, MessageCircle } from "lucide-react"
 
 interface SidebarProps {
   onPageChange: (page: string) => void
@@ -48,6 +48,7 @@ export function Sidebar({ onPageChange, currentPage }: SidebarProps) {
               <Brain className="mr-3 h-4 w-4" />
               AI Insights
             </Button>
+            
             <Button variant="ghost" className="w-full justify-start">
               <BarChart3 className="mr-3 h-4 w-4" />
               Analytics
@@ -70,6 +71,14 @@ export function Sidebar({ onPageChange, currentPage }: SidebarProps) {
             >
               <TrendingUp className="mr-3 h-4 w-4" />
               Test Run Insights
+            </Button>
+            <Button 
+              variant={currentPage === "assistant" ? "secondary" : "ghost"}
+              className={`w-full justify-start ${currentPage === "assistant" ? "bg-blue-50 text-blue-700 hover:bg-blue-100" : ""}`}
+              onClick={() => onPageChange("assistant")}
+            >
+              <MessageCircle className="mr-3 h-4 w-4" />
+              Assistant
             </Button>
           </div>
         </div>
