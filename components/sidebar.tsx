@@ -1,7 +1,7 @@
 "use client"
 
 import { Button } from "@/components/ui/button"
-import { BarChart3, Settings, TestTube, GitPullRequest, Brain, TrendingUp, MessageCircle } from "lucide-react"
+import { BarChart3, Settings, TestTube, GitPullRequest, Brain, TrendingUp, MessageCircle, FileText } from "lucide-react"
 
 interface SidebarProps {
   onPageChange: (page: string) => void
@@ -60,7 +60,11 @@ export function Sidebar({ onPageChange, currentPage }: SidebarProps) {
         <div>
           <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">General</h3>
           <div className="space-y-1">
-            <Button variant="ghost" className="w-full justify-start">
+            <Button 
+              variant={currentPage === "settings" ? "secondary" : "ghost"}
+              className={`w-full justify-start ${currentPage === "settings" ? "bg-blue-50 text-blue-700 hover:bg-blue-100" : ""}`}
+              onClick={() => onPageChange("settings")}
+            >
               <Settings className="mr-3 h-4 w-4" />
               Settings
             </Button>
@@ -82,6 +86,8 @@ export function Sidebar({ onPageChange, currentPage }: SidebarProps) {
             </Button>
           </div>
         </div>
+
+
       </nav>
     </div>
   )

@@ -10,9 +10,14 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb"
-import { Trash2, GitBranch, Hash, User, Clock, Timer, FileText } from "lucide-react"
+import { Trash2, GitBranch, Hash, User, Clock, Timer, FileText, Bug } from "lucide-react"
 
-export function Header() {
+interface HeaderProps {
+  activeTab: string
+  onTabChange: (tab: string) => void
+}
+
+export function Header({ activeTab, onTabChange }: HeaderProps) {
   return (
     <div className="bg-white border-b border-gray-200 p-6">
       {/* Breadcrumb */}
@@ -43,10 +48,12 @@ export function Header() {
           </BreadcrumbList>
         </Breadcrumb>
 
-        <Button variant="destructive" size="sm">
-          <Trash2 className="mr-2 h-4 w-4" />
-          Delete
-        </Button>
+        <div className="flex items-center space-x-2">
+          <Button variant="destructive" size="sm">
+            <Trash2 className="mr-2 h-4 w-4" />
+            Delete
+          </Button>
+        </div>
       </div>
 
       {/* Test Run Info */}
@@ -91,11 +98,12 @@ export function Header() {
 
       {/* Tab Navigation */}
       <div className="flex space-x-6 border-b border-gray-200">
-        {["Summary", "Specs", "History", "Configuration", "AI Insights", "Trends"].map((tab) => (
+        {["Summary", "Specs", "History", "Configuration", "AI Insights", "Trends", "Bug Report"].map((tab) => (
           <button
             key={tab}
-            className={`pb-3 px-1 text-sm font-medium border-b-2 ${
-              tab === "AI Insights"
+            onClick={() => onTabChange(tab)}
+            className={`pb-3 px-1 text-sm font-medium border-b-2 transition-colors ${
+              activeTab === tab
                 ? "text-blue-600 border-blue-600"
                 : "text-gray-500 border-transparent hover:text-gray-700 hover:border-gray-300"
             }`}
