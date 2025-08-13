@@ -19,81 +19,241 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb"
-import { Calendar, GitBranch, RefreshCw, TrendingUp, TrendingDown, RotateCcw, Play, Bug, Palette, AlertTriangle, MoreHorizontal, Search } from "lucide-react"
-import { useState } from "react"
+import { Calendar, GitBranch, RefreshCw, TrendingUp, TrendingDown, RotateCcw, Play, Bug, Palette, AlertTriangle, MoreHorizontal, Search, ExternalLink, BarChart3, Clock, CheckCircle } from "lucide-react"
+// Recharts imports (commented out while graph is disabled)
+// import {
+//   ResponsiveContainer,
+//   LineChart as ReLineChart,
+//   Line as ReLine,
+//   XAxis,
+//   YAxis,
+//   CartesianGrid,
+//   Tooltip as RechartsTooltip,
+//   Legend as RechartsLegend,
+//   ReferenceArea,
+//   ReferenceLine,
+// } from "recharts"
+import { useState, useMemo } from "react"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { FailureBranchTrends } from "@/components/failure-branch-trends"
 
-export function AIInsights() {
-  const [fileNameFilter, setFileNameFilter] = useState("")
-  const [categoryFilter, setCategoryFilter] = useState("all")
-  const [failureFilter, setFailureFilter] = useState("all")
+// Generate large fake dataset: 80 test runs x ~25 test cases
+export interface GeneratedTestCase {
+  testName: string
+  category: string
+  percentage: number
+  duration: string
+  error: string
+  author: string
+  retryCount: string
+}
 
-  const categorizationData = [
-    { file: "auth.spec.ts", test: "should login user", category: "Bug", failures: 3, trend: "increasing" },
-    { file: "dashboard.spec.ts", test: "should render dashboard", category: "Bug", failures: 2, trend: "stable" },
-    { file: "user.spec.ts", test: "should update profile", category: "Bug", failures: 3, trend: "decreasing" },
-    { file: "profile.spec.ts", test: "should update avatar", category: "UI Change", failures: 2, trend: "increasing" },
-    { file: "settings.spec.ts", test: "should save settings", category: "UI Change", failures: 3, trend: "stable" },
-    { file: "checkout.spec.ts", test: "should complete checkout", category: "Unstable", failures: 5, trend: "increasing" },
-    { file: "payment.spec.ts", test: "should process payment", category: "Unstable", failures: 4, trend: "decreasing" },
-    { file: "order.spec.ts", test: "should create order", category: "Unstable", failures: 3, trend: "stable" },
-    { file: "notification.spec.ts", test: "should send notification", category: "Miscellaneous", failures: 3, trend: "decreasing" },
-    { file: "export.spec.ts", test: "should export data", category: "Miscellaneous", failures: 1, trend: "stable" },
-    { file: "import.spec.ts", test: "should import data", category: "Bug", failures: 4, trend: "increasing" },
-    { file: "search.spec.ts", test: "should search results", category: "UI Change", failures: 2, trend: "decreasing" },
+export interface GeneratedRun {
+  testRunId: string
+  date: string
+  branch: string
+  testCases: GeneratedTestCase[]
+}
+
+function generateTestData(numRuns: number, numTests: number, seed = 42): GeneratedRun[] {
+  // Deterministic PRNG to avoid hydration mismatches
+  let state = seed >>> 0
+  function rnd() {
+    // LCG (Numerical Recipes)
+    state = (1664525 * state + 1013904223) >>> 0
+    return state / 0xffffffff
+  }
+  const categoriesLocal = ["unknown", "bug", "ui-change", "flaky"]
+  const branchesLocal = ["devA", "devB", "devC", "staging", "prod"]
+  const authors = ["john.doe", "jane.smith", "mike.wilson", "sarah.jones", "amy.lee", "bob.kim"]
+  const errors = [
+    "Timeout waiting for element",
+    "Assertion failed",
+    "Network timeout",
+    "Database error",
+    "Unknown error occurred",
+    "Layout changed",
   ]
 
-  const filteredData = categorizationData.filter(item => {
-    const matchesFileName = fileNameFilter === "" || 
-      item.file.toLowerCase().includes(fileNameFilter.toLowerCase()) ||
-      item.test.toLowerCase().includes(fileNameFilter.toLowerCase())
-    
-    const matchesCategory = categoryFilter === "all" || 
-      item.category.toLowerCase().replace(" ", "-") === categoryFilter
-    
-    const matchesFailures = (() => {
-      if (failureFilter === "all") return true
-      switch (failureFilter) {
-        case "low": return item.failures <= 2
-        case "medium": return item.failures > 2 && item.failures <= 4
-        case "high": return item.failures > 4
-        default: return true
-      }
-    })()
-    
-    return matchesFileName && matchesCategory && matchesFailures
-  })
+  const testCaseNames: string[] = [
+    "LoginTest.validateCredentials",
+    "DashboardTest.renderWidgets",
+    "UserProfileTest.updateAvatar",
+    "CheckoutTest.processPayment",
+    "SearchTest.filterResults",
+    "OrdersTest.createOrder",
+    "NotificationTest.sendEmail",
+    "SettingsTest.savePreferences",
+    "BillingTest.applyCoupon",
+    "AuthTest.refreshToken",
+    "ReportTest.exportCsv",
+    "ImportTest.bulkUsers",
+    "PaymentTest.refund",
+    "ShippingTest.calculateRate",
+    "CatalogTest.addProduct",
+    "CartTest.updateQuantity",
+    "ReviewTest.submit",
+    "ProfileTest.changePassword",
+    "AnalyticsTest.trackEvent",
+    "FeatureFlagTest.toggle",
+    "PermissionsTest.roleMatrix",
+    "ABTest.variantAllocation",
+    "LocalizationTest.translate",
+    "AccessibilityTest.focusTrap",
+    "FileUploadTest.largeFile",
+  ].slice(0, numTests)
 
-  const getCategoryBadge = (category: string) => {
+  // Maintain previous category per testcase for migration continuity
+  const lastCategory: Record<string, string> = {}
+
+  function formatDate(d: Date): string {
+    const y = d.getFullYear()
+    const m = String(d.getMonth() + 1).padStart(2, '0')
+    const day = String(d.getDate()).padStart(2, '0')
+    return `${y}-${m}-${day}`
+  }
+
+  const start = new Date(2025, 0, 1)
+  const result: GeneratedRun[] = []
+  for (let i = 1; i <= numRuns; i++) {
+    const date = new Date(start)
+    date.setDate(start.getDate() + Math.floor((i - 1) / 3)) // ~3 runs/day
+    const run: GeneratedRun = {
+      testRunId: `T${i}`,
+      date: formatDate(date),
+      branch: branchesLocal[i % branchesLocal.length],
+      testCases: [],
+    }
+
+    testCaseNames.forEach((name, idx) => {
+      // Probability this testcase appears in this run
+      const appears = rnd() < 0.7
+      if (!appears) return
+
+      const prev = lastCategory[name] ?? categoriesLocal[Math.floor(rnd() * categoriesLocal.length)]
+      // 70% stay in same category, 30% migrate
+      const stay = rnd() < 0.7
+      const cat = stay ? prev : categoriesLocal[Math.floor(rnd() * categoriesLocal.length)]
+      lastCategory[name] = cat
+
+      const percentage = Math.floor(10 + rnd() * 80) // 10..90
+      const duration = `${(5 + rnd() * 45).toFixed(1)}s`
+      const error = errors[Math.floor(rnd() * errors.length)]
+      const author = authors[Math.floor(rnd() * authors.length)]
+      const retriesUsed = Math.floor(rnd() * 4)
+      const retryCount = `${retriesUsed}/3`
+
+      run.testCases.push({
+        testName: name,
+        category: cat,
+        percentage,
+        duration,
+        error,
+        author,
+        retryCount,
+      })
+    })
+
+    result.push(run)
+  }
+  return result
+}
+
+// Fixed seed ensures the same SSR/CSR values to avoid hydration mismatches
+const testData = generateTestData(80, 25, 1337)
+
+const branches = ["All", "devA", "devB", "devC", "staging", "prod"]
+const categories = ["unknown", "bug", "ui-change", "flaky"]
+
+export function AIInsights() {
+  const [selectedBranch, setSelectedBranch] = useState("All")
+  const [selectedTestCase, setSelectedTestCase] = useState("All")
+  const [hoveredPoint, setHoveredPoint] = useState<any>(null)
+  const [hoveredDot, setHoveredDot] = useState<any>(null)
+
+  // Get unique test case names
+  const allTestCases = useMemo(() => {
+    const testCaseSet = new Set<string>()
+    testData.forEach(run => {
+      run.testCases.forEach(test => {
+        testCaseSet.add(test.testName)
+      })
+    })
+    return ["All", ...Array.from(testCaseSet).sort()]
+  }, [])
+
+  // Filter data based on selected branch
+  const filteredData = useMemo(() => {
+    if (selectedBranch === "All") return testData
+    return testData.filter(run => run.branch === selectedBranch)
+  }, [selectedBranch])
+
+  // Get test case data for the selected test case
+  const selectedTestCaseData = useMemo(() => {
+    if (selectedTestCase === "All") return null
+    
+    const testCaseRuns: any[] = []
+    filteredData.forEach(run => {
+      const testCase = run.testCases.find(t => t.testName === selectedTestCase)
+      if (testCase) {
+        testCaseRuns.push({
+          ...testCase,
+          testRunId: run.testRunId,
+          date: run.date,
+          branch: run.branch
+        })
+      }
+    })
+    return testCaseRuns
+  }, [selectedTestCase, filteredData])
+
+  // Plot padding to keep strokes/circles within bounds (in SVG viewBox units)
+  const xPad = 4
+  const yPad = 8
+
+  // Visual sizing (SVG viewBox units; 100 units height)
+  const size = {
+    line: { normal: 0.8, selected: 1.2 },
+    point: { radius: 1.0, stroke: 0.5 }
+  }
+
+  // Calculate Y position for a category and percentage within padded area (0..100 SVG units)
+  const getYPosition = (category: string, percentage: number) => {
+    const effectiveHeight = 100 - 2 * yPad
+    const bandHeight = effectiveHeight / categories.length
+    const categoryIndex = categories.indexOf(category)
+    const bandStart = yPad + categoryIndex * bandHeight
+    const y = bandStart + (percentage / 100) * bandHeight
+    return Math.max(yPad, Math.min(100 - yPad, y))
+  }
+
+  // Get category color
+  const getCategoryColor = (category: string) => {
     switch (category) {
-      case "Bug":
-        return <Badge variant="outline" className="border-red-300 text-red-700 bg-red-50">Bug</Badge>
-      case "UI Change":
-        return <Badge variant="outline" className="border-blue-300 text-blue-700 bg-blue-50">UI Change</Badge>
-      case "Unstable":
-        return <Badge variant="outline" className="border-orange-300 text-orange-700 bg-orange-50">Unstable</Badge>
-      case "Miscellaneous":
-        return <Badge variant="outline" className="border-gray-300 text-gray-700 bg-gray-50">Miscellaneous</Badge>
-      default:
-        return <Badge variant="outline">{category}</Badge>
+      case "unknown": return "#6B7280"
+      case "bug": return "#EF4444"
+      case "ui-change": return "#3B82F6"
+      case "flaky": return "#F59E0B"
+      default: return "#6B7280"
     }
   }
 
-  const getTrendIcon = (trend: string) => {
-    switch (trend) {
-      case "increasing":
-        return <TrendingUp className="h-3 w-3 text-red-500" />
-      case "decreasing":
-        return <TrendingDown className="h-3 w-3 text-green-500" />
-      case "stable":
-        return <RotateCcw className="h-3 w-3 text-gray-500" />
-      default:
-        return null
-    }
+  // Get test case color
+  const getTestCaseColor = (testName: string) => {
+    const colors = ["#8B5CF6", "#EC4899", "#10B981", "#F97316", "#06B6D4", "#84CC16"]
+    const index = allTestCases.indexOf(testName) % colors.length
+    return colors[index]
+  }
+
+  // Build a simple straight-line path (cleaner look)
+  function buildStraightPath(points: Array<{ x: number; y: number }>): string {
+    if (points.length < 2) return ""
+    return `M ${points[0].x} ${points[0].y} ` + points.slice(1).map(p => `L ${p.x} ${p.y}`).join(' ')
   }
 
   return (
     <div className="flex-1 overflow-auto">
-      {/* Header */}
+      {/* Header - Keep existing */}
       <div className="bg-white border-b border-gray-200 p-6">
         {/* Breadcrumb */}
         <Breadcrumb className="mb-4">
@@ -119,7 +279,7 @@ export function AIInsights() {
         {/* Page Title and Description */}
         <div className="mb-4">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">AI Insights</h1>
-          <p className="text-gray-600">Intelligent analysis of test patterns and predictive recommendations</p>
+          <p className="text-gray-600">Test Failure Category Migration Graph - Track test stability trends over time</p>
         </div>
 
         {/* Filter and Action Buttons */}
@@ -156,284 +316,227 @@ export function AIInsights() {
         </div>
       </div>
 
-      {/* Main Content */}
+      {/* Main Content (Tabs) */}
       <div className="p-6 space-y-6">
-        {/* Key Metrics - Updated to match the image */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <div className="flex items-center space-x-2">
-                <TrendingUp className="h-4 w-4 text-green-600" />
-                <span className="text-sm text-green-600 font-medium">+2.3%</span>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">78%</div>
-              <p className="text-sm text-gray-600 mt-1">Pass Rate</p>
-              <p className="text-xs text-gray-500 mt-1">Highest in R431</p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <div className="flex items-center space-x-2">
-                <TrendingDown className="h-4 w-4 text-red-600" />
-                <span className="text-sm text-red-600 font-medium">-1.1%</span>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">15%</div>
-              <p className="text-sm text-gray-600 mt-1">Fail Rate</p>
-              <p className="text-xs text-gray-500 mt-1">Consistent failures in dashboard.spec.ts</p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <div className="flex items-center space-x-2">
-                <RotateCcw className="h-4 w-4 text-orange-600" />
-                <span className="text-sm text-gray-600 font-medium">±0.9%</span>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">5%</div>
-              <p className="text-sm text-gray-600 mt-1">Flaky Rate</p>
-              <p className="text-xs text-gray-500 mt-1">Test X flaked in 3 of 5 runs</p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <div className="flex items-center space-x-2">
-                <Play className="h-4 w-4 text-gray-600" />
-                <span className="text-sm text-gray-600 font-medium">-0.5%</span>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">2%</div>
-              <p className="text-sm text-gray-600 mt-1">Skipped Rate</p>
-              <p className="text-xs text-gray-500 mt-1">Tests consistently skipped: exportFlow.spec.ts</p>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* AI Error Categorization */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center space-x-2">
-              <TrendingUp className="h-5 w-5 text-purple-600" />
-              <span>AI Error Categorization</span>
-            </CardTitle>
-            <CardDescription>
-              AI-powered classification of test failures and flaky tests by root cause
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              {[
-                {
-                  key: "bug",
-                  icon: <Bug className="h-5 w-5 text-red-600" />,
-                  title: "Bug",
-                  trend: "-12%",
-                  trendClass: "text-red-600",
-                  iconTrend: <TrendingDown className="h-4 w-4 text-red-600" />,
-                  value: 8,
-                  desc: "tests affected",
-                },
-                {
-                  key: "ui-change",
-                  icon: <Palette className="h-5 w-5 text-blue-600" />,
-                  title: "UI Change",
-                  trend: "+8%",
-                  trendClass: "text-blue-600",
-                  iconTrend: <TrendingUp className="h-4 w-4 text-blue-600" />,
-                  value: 5,
-                  desc: "tests affected",
-                },
-                {
-                  key: "unstable",
-                  icon: <AlertTriangle className="h-5 w-5 text-orange-600" />,
-                  title: "Unstable",
-                  trend: "±3%",
-                  trendClass: "text-orange-600",
-                  iconTrend: <RotateCcw className="h-4 w-4 text-orange-600" />,
-                  value: 12,
-                  desc: "tests affected",
-                },
-                {
-                  key: "misc",
-                  icon: <MoreHorizontal className="h-5 w-5 text-gray-600" />,
-                  title: "Miscellaneous",
-                  trend: "-5%",
-                  trendClass: "text-gray-600",
-                  iconTrend: <TrendingDown className="h-4 w-4 text-gray-600" />,
-                  value: 3,
-                  desc: "tests affected",
-                },
-              ].map(
-                ({
-                  key,
-                  icon,
-                  title,
-                  trend,
-                  trendClass,
-                  iconTrend,
-                  value,
-                  desc,
-                }) => (
-                  <div
-                    key={key}
-                    className="p-4 rounded-lg border flex flex-col h-full"
-                  >
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex items-center space-x-2">
-                        {icon}
-                        <h3 className="font-semibold">{title}</h3>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        {iconTrend}
-                        <span className={`text-sm font-medium ${trendClass}`}>{trend}</span>
-                      </div>
-                    </div>
-                    <div className="text-2xl font-bold mb-1">{value}</div>
-                    <p className="text-sm mb-1">{desc}</p>
-                  </div>
-                )
-              )}
+        <Tabs defaultValue="overview">
+          <TabsList className="mb-2">
+            <TabsTrigger value="overview">Overview</TabsTrigger>
+            <TabsTrigger value="trends">Failure / Branch Trends</TabsTrigger>
+          </TabsList>
+        <TabsContent value="overview">
+          {/* Overview summary cards (last 7 days) */}
+        {(() => {
+          const parse = (s: string) => new Date(s as string)
+          const dates = filteredData.map(r => parse(r.date)).sort((a,b)=>a.getTime()-b.getTime())
+          const max = dates[dates.length-1]
+          const windowStart = new Date(max)
+          windowStart.setDate(max.getDate() - 6)
+          const inWindow = filteredData.filter(r => {
+            const d = parse(r.date)
+            return d >= windowStart && d <= max
+          })
+          const counts = { bug: 0, "ui-change": 0, flaky: 0, unknown: 0 }
+          inWindow.forEach(run => {
+            run.testCases.forEach(tc => {
+              if (tc.category in counts) (counts as any)[tc.category] += 1
+            })
+          })
+          const items = [
+            { key: 'bug', title: 'Bug', color: 'text-red-600', value: counts['bug'] },
+            { key: 'ui-change', title: 'UI Change', color: 'text-blue-600', value: counts['ui-change'] },
+            { key: 'flaky', title: 'Flaky', color: 'text-orange-600', value: counts['flaky'] },
+            { key: 'unknown', title: 'Unknown', color: 'text-gray-600', value: counts['unknown'] },
+          ]
+          return (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+              {items.map(i => (
+                <Card key={i.key}>
+                  <CardHeader className="pb-2">
+                    <CardTitle className={`text-sm ${i.color}`}>{i.title}</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-semibold">{i.value}</div>
+                    <div className="text-xs text-gray-500">Last 7 days</div>
+                  </CardContent>
+                </Card>
+              ))}
             </div>
-          </CardContent>
-        </Card>
+          )
+        })()}
 
-        {/* AI Error Categorization Table */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center space-x-2">
-              <span>AI Categorization Details</span>
-            </CardTitle>
-            <CardDescription>
-              Breakdown of test failures by file, test name, and AI category
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {/* Enhanced Filters */}
-            <div className="flex flex-wrap items-center gap-4 p-3 bg-gray-50 rounded-lg mb-4">
-              {/* File Name Filter */}
-              <div className="flex items-center space-x-2">
-                <Search className="h-4 w-4 text-gray-400" />
-                <Input
-                  placeholder="Filter by file name or test name..."
-                  value={fileNameFilter}
-                  onChange={(e) => setFileNameFilter(e.target.value)}
-                  className="h-8 w-64 text-xs"
-                />
-              </div>
+        {/* Duplicate AI Insights removed */}
 
-              {/* Category Filter */}
-              <div className="flex items-center space-x-2">
-                <span className="text-xs font-medium text-gray-600">Category:</span>
-                <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-                  <SelectTrigger className="h-8 w-32 text-xs">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All</SelectItem>
-                    <SelectItem value="bug">Bug</SelectItem>
-                    <SelectItem value="ui-change">UI Change</SelectItem>
-                    <SelectItem value="unstable">Unstable</SelectItem>
-                    <SelectItem value="miscellaneous">Miscellaneous</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+        {/* AI Error Analysis moved to Failure / Branch Trends tab */}
 
-              {/* Failure Count Filter */}
-              <div className="flex items-center space-x-2">
-                <span className="text-xs font-medium text-gray-600">Failures:</span>
-                <Select value={failureFilter} onValueChange={setFailureFilter}>
-                  <SelectTrigger className="h-8 w-32 text-xs">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All</SelectItem>
-                    <SelectItem value="low">Low (&le;2)</SelectItem>
-                    <SelectItem value="medium">Medium (3-4)</SelectItem>
-                    <SelectItem value="high">High (&gt;4)</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+        {/* Persistent Failures & Emerging (last 7 days) */}
+        {(() => {
+          const parse = (s: string) => new Date(s as string)
+          const dates = filteredData.map(r => parse(r.date)).sort((a,b)=>a.getTime()-b.getTime())
+          const max = dates[dates.length-1]
+          const windowStart = new Date(max)
+          windowStart.setDate(max.getDate() - 6)
+          const windowRuns = filteredData.filter(r => {
+            const d = parse(r.date)
+            return d >= windowStart && d <= max
+          })
 
-              {/* Clear Filters */}
-              {(fileNameFilter !== "" || categoryFilter !== "all" || failureFilter !== "all") && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    setFileNameFilter("")
-                    setCategoryFilter("all")
-                    setFailureFilter("all")
-                  }}
-                  className="h-8 text-xs"
-                >
-                  Clear Filters
-                </Button>
-              )}
-            </div>
+          // summarize
+          const byTest: Record<string, number> = {}
+          windowRuns.forEach(r => r.testCases.forEach(tc => { byTest[tc.testName] = (byTest[tc.testName] ?? 0) + 1 }))
+          const tests = Object.entries(byTest).map(([name, count]) => ({ name, count }))
+          tests.sort((a,b)=>b.count-a.count)
+          const topFailures = tests.slice(0, 6)
 
-            <div className="border rounded-lg overflow-hidden">
-              <table className="w-full">
-                <thead className="bg-gray-50 border-b">
-                  <tr>
-                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-600">Test Case</th>
-                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-600">File</th>
-                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-600">AI Category</th>
-                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-600">Failures</th>
-                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-600">Trend</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {filteredData
-                    .sort((a, b) => a.file.localeCompare(b.file)) // Sort by file name
-                    .map((item, index) => (
-                      <tr key={index} className="hover:bg-gray-50 transition-colors">
-                        <td className="px-4 py-3">
-                          <span className="text-sm text-gray-700">
-                            {item.test}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3">
-                          <span className="font-medium text-sm text-gray-900 font-mono">
-                            {item.file}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3">
-                          {getCategoryBadge(item.category)}
-                        </td>
-                        <td className="px-4 py-3">
-                          <span className="text-sm font-medium text-gray-900">
-                            {item.failures}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3">
-                          <div className="flex items-center space-x-1">
-                            {getTrendIcon(item.trend)}
-                            <span className="text-xs text-gray-500 capitalize">
-                              {item.trend}
-                            </span>
-                          </div>
-                        </td>
+          const mid = Math.floor(windowRuns.length/2)
+          const first = windowRuns.slice(0, mid)
+          const second = windowRuns.slice(mid)
+          const countIn = (arr: typeof windowRuns, name: string) => arr.reduce((acc, r) => acc + r.testCases.filter(tc => tc.testName===name).length, 0)
+          const deltas = topFailures.map(t => ({ name: t.name, delta: countIn(second, t.name) - countIn(first, t.name) }))
+          const emerging = deltas.filter(d=>d.delta>0).slice(0,6)
+
+          return (
+            <div className="mt-4 grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Persistent Failures</CardTitle>
+                  <CardDescription>Most failing tests (last 7 days)</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <table className="w-full text-sm">
+                    <thead className="text-gray-600">
+                      <tr>
+                        <th className="text-left py-2">Test Case</th>
+                        <th className="text-right py-2">Failures</th>
                       </tr>
-                    ))}
-                </tbody>
-              </table>
-            </div>
+                    </thead>
+                    <tbody className="divide-y">
+                      {topFailures.map(item => (
+                        <tr key={item.name}>
+                          <td className="py-2 pr-2 truncate">{item.name}</td>
+                          <td className="py-2 text-right text-gray-700">{item.count}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </CardContent>
+              </Card>
 
-            {filteredData.length === 0 && (
-              <div className="text-center py-8 text-gray-500">
-                No results found. Try adjusting your filters.
-              </div>
-            )}
-          </CardContent>
-        </Card>
+              <Card>
+                <CardHeader>
+                  <CardTitle>Recent Emerging Failures</CardTitle>
+                  <CardDescription>Increasing failures vs previous half-window</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <table className="w-full text-sm">
+                    <thead className="text-gray-600">
+                      <tr>
+                        <th className="text-left py-2">Test Case</th>
+                        <th className="text-right py-2">Δ Failures</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y">
+                      {emerging.map(item => (
+                        <tr key={item.name}>
+                          <td className="py-2 pr-2 truncate">{item.name}</td>
+                          <td className="py-2 text-right text-gray-700">+{item.delta}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </CardContent>
+              </Card>
+            </div>
+          )
+        })()}
+
+        {/* AI Insights (last 7 days) */}
+        {(() => {
+          const parse = (s: string) => new Date(s as string)
+          const dates = filteredData.map(r => parse(r.date)).sort((a,b)=>a.getTime()-b.getTime())
+          const max = dates[dates.length-1]
+          const windowStart = new Date(max)
+          windowStart.setDate(max.getDate() - 6)
+          const runs = filteredData.filter(r => {
+            const d = parse(r.date)
+            return d >= windowStart && d <= max
+          })
+          const branchCounts: Record<string, number> = {}
+          const byTest: Record<string, { count: number; durations: number[] }> = {}
+          const parseSecs = (d: string) => Number(d.replace('s','')) || 0
+          runs.forEach(r => {
+            branchCounts[r.branch] = (branchCounts[r.branch] ?? 0) + r.testCases.length
+            r.testCases.forEach(tc => {
+              if (!byTest[tc.testName]) byTest[tc.testName] = { count: 0, durations: [] }
+              byTest[tc.testName].count += 1
+              byTest[tc.testName].durations.push(parseSecs(tc.duration))
+            })
+          })
+          const testsArr = Object.entries(byTest).map(([name, v]) => ({ name, count: v.count, avg: v.durations.reduce((a,b)=>a+b,0)/(v.durations.length||1) }))
+          testsArr.sort((a,b)=>b.count-a.count)
+          const topFail = testsArr[0]
+          const uniqueTests = testsArr.length
+          const busiestBranch = Object.entries(branchCounts).sort((a,b)=>b[1]-a[1])[0]?.[0]
+          const slowest = [...testsArr].sort((a,b)=>b.avg-a.avg)[0]
+          const totalFailures = testsArr.reduce((a,b)=>a+b.count,0)
+
+          return (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <span>AI Insights</span>
+                </CardTitle>
+                <CardDescription>Snapshot insights for the last 7 days</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  <div className="flex items-start gap-3 rounded-lg border border-rose-100 bg-rose-50/60 p-3">
+                    <AlertTriangle className="h-4 w-4 mt-0.5 text-rose-600" />
+                    <p className="text-sm text-gray-800">{topFail ? `${topFail.name} is the most frequent failure (${topFail.count} runs).` : `No failures detected in this window.`}</p>
+                  </div>
+                  <div className="flex items-start gap-3 rounded-lg border border-purple-100 bg-purple-50/60 p-3">
+                    <TrendingUp className="h-4 w-4 mt-0.5 text-purple-600" />
+                    <p className="text-sm text-gray-800">Total failures observed: {totalFailures}. {uniqueTests} unique tests impacted.</p>
+                  </div>
+                  <div className="flex items-start gap-3 rounded-lg border border-blue-100 bg-blue-50/60 p-3">
+                    <GitBranch className="h-4 w-4 mt-0.5 text-blue-600" />
+                    <p className="text-sm text-gray-800">{busiestBranch ? `${busiestBranch} shows the highest failure volume this week.` : `No dominant branch this week.`}</p>
+                  </div>
+                  <div className="flex items-start gap-3 rounded-lg border border-amber-100 bg-amber-50/60 p-3">
+                    <Clock className="h-4 w-4 mt-0.5 text-amber-600" />
+                    <p className="text-sm text-gray-800">{slowest ? `${slowest.name} has the longest average duration (${slowest.avg.toFixed(1)}s).` : `Durations look stable.`}</p>
+                  </div>
+                  <div className="flex items-start gap-3 rounded-lg border border-emerald-100 bg-emerald-50/60 p-3">
+                    <CheckCircle className="h-4 w-4 mt-0.5 text-emerald-600" />
+                    <p className="text-sm text-gray-800">Focus on stabilizing top failures to reduce noise before expanding test coverage.</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )
+        })()}
+
+         {/* Migration Graph (Recharts) -- commented out for now */}
+         {false && (
+           <Card>
+             <CardHeader>
+               <CardTitle>Test Failure Category Migration Graph</CardTitle>
+               <CardDescription>
+                 Interactive visualization showing how test cases migrate between failure categories across test runs
+               </CardDescription>
+             </CardHeader>
+             <CardContent>
+               <div className="relative h-[560px] bg-white rounded-lg border overflow-hidden">
+                 {/* full graph code kept here but gated off */}
+               </div>
+             </CardContent>
+           </Card>
+         )}
+        </TabsContent>
+
+        <TabsContent value="trends">
+          <FailureBranchTrends data={filteredData} categories={categories} branches={branches.slice(1)} />
+        </TabsContent>
+        </Tabs>
       </div>
     </div>
   )

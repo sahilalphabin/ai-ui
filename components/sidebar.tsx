@@ -25,7 +25,7 @@ export function Sidebar({ onPageChange, currentPage }: SidebarProps) {
         <div>
           <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Dashboard</h3>
           <div className="space-y-1">
-            <Button variant="secondary" className="w-full justify-start bg-blue-50 text-blue-700 hover:bg-blue-100">
+            <Button variant="ghost" className="w-full justify-start">
               <TestTube className="mr-3 h-4 w-4" />
               Test Runs
             </Button>

@@ -13,7 +13,7 @@ import { BugReportPanel } from "@/components/bug-report-panel"
 export default function TestdinoApp() {
   const [activeTab, setActiveTab] = useState("patterns")
   const [headerTab, setHeaderTab] = useState("Summary")
-  const [currentPage, setCurrentPage] = useState("test-run-insights") // "test-run-insights", "ai-insights", "assistant", or "conversations"
+  const [currentPage, setCurrentPage] = useState("ai-insights") // "test-run-insights", "ai-insights", "assistant", or "conversations"
 
   const handleViewConversations = () => {
     setCurrentPage("conversations")
