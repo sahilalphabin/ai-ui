@@ -10,7 +10,25 @@ import { Conversations } from "@/components/conversations"
 import { Settings } from "@/components/settings"
 import { BugReportPanel } from "@/components/bug-report-panel"
 
-export default function TestdinoApp() {
+interface SummaryCardData {
+  count: number;
+  topTestCases: { title: string; count: number }[];
+}
+
+interface InsightsData {
+  summaryCards: {
+    uichange: SummaryCardData;
+    bug: SummaryCardData;
+    flaky: SummaryCardData;
+    unknown: SummaryCardData;
+  };
+}
+
+interface TestdinoAppProps {
+  summaryCards: InsightsData['summaryCards'] | null;
+}
+
+export default function TestdinoApp({ summaryCards }: TestdinoAppProps) {
   const [activeTab, setActiveTab] = useState("patterns")
   const [headerTab, setHeaderTab] = useState("Summary")
   const [currentPage, setCurrentPage] = useState("ai-insights") // "test-run-insights", "ai-insights", "assistant", or "conversations"
@@ -42,7 +60,7 @@ export default function TestdinoApp() {
   }
 
   return (
-    <div className="flex h-screen bg-gray-50">
+    <div className="flex h-full bg-gray-50">
       <Sidebar onPageChange={setCurrentPage} currentPage={currentPage} />
       <div className="flex-1 flex flex-col overflow-hidden">
         {currentPage === "test-run-insights" ? (
@@ -58,7 +76,7 @@ export default function TestdinoApp() {
             )}
           </>
         ) : currentPage === "ai-insights" ? (
-          <AIInsights />
+          <AIInsights summaryCards={summaryCards} />
         ) : currentPage === "settings" ? (
           <Settings />
         ) : currentPage === "conversations" ? (

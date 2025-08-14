@@ -20,22 +20,24 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb"
 import { Calendar, GitBranch, RefreshCw, TrendingUp, TrendingDown, RotateCcw, Play, Bug, Palette, AlertTriangle, MoreHorizontal, Search, ExternalLink, BarChart3, Clock, CheckCircle } from "lucide-react"
-// Recharts imports (commented out while graph is disabled)
-// import {
-//   ResponsiveContainer,
-//   LineChart as ReLineChart,
-//   Line as ReLine,
-//   XAxis,
-//   YAxis,
-//   CartesianGrid,
-//   Tooltip as RechartsTooltip,
-//   Legend as RechartsLegend,
-//   ReferenceArea,
-//   ReferenceLine,
-// } from "recharts"
+import {
+  ResponsiveContainer,
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ReferenceArea,
+  ReferenceLine,
+} from "recharts"
 import { useState, useMemo } from "react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { FailureBranchTrends } from "@/components/failure-branch-trends"
+import { SummaryCards } from "@/components/summary-cards"
+import { MigrationGraph } from "@/components/migration-graph"
+import { FailureAnalysis } from "@/components/failure-analysis"
 
 // Generate large fake dataset: 80 test runs x ~25 test cases
 export interface GeneratedTestCase {
@@ -160,12 +162,30 @@ function generateTestData(numRuns: number, numTests: number, seed = 42): Generat
 }
 
 // Fixed seed ensures the same SSR/CSR values to avoid hydration mismatches
-const testData = generateTestData(80, 25, 1337)
+const testData = generateTestData(20, 10, 1337)
+
+interface SummaryCardData {
+  count: number;
+  topTestCases: { title: string; count: number }[];
+}
+
+interface InsightsData {
+  summaryCards: {
+    uichange: SummaryCardData;
+    bug: SummaryCardData;
+    flaky: SummaryCardData;
+    unknown: SummaryCardData;
+  };
+}
+
+interface AIInsightsProps {
+  summaryCards: InsightsData['summaryCards'] | null;
+}
 
 const branches = ["All", "devA", "devB", "devC", "staging", "prod"]
 const categories = ["unknown", "bug", "ui-change", "flaky"]
 
-export function AIInsights() {
+export function AIInsights({ summaryCards }: AIInsightsProps) {
   const [selectedBranch, setSelectedBranch] = useState("All")
   const [selectedTestCase, setSelectedTestCase] = useState("All")
   const [hoveredPoint, setHoveredPoint] = useState<any>(null)
@@ -174,6 +194,7 @@ export function AIInsights() {
   // Get unique test case names
   const allTestCases = useMemo(() => {
     const testCaseSet = new Set<string>()
+    // Using existing testData for migration graph, not summary cards
     testData.forEach(run => {
       run.testCases.forEach(test => {
         testCaseSet.add(test.testName)
@@ -325,195 +346,19 @@ export function AIInsights() {
           </TabsList>
         <TabsContent value="overview">
           {/* Overview summary cards (last 7 days) */}
-        {(() => {
-          const parse = (s: string) => new Date(s as string)
-          const dates = filteredData.map(r => parse(r.date)).sort((a,b)=>a.getTime()-b.getTime())
-          const max = dates[dates.length-1]
-          const windowStart = new Date(max)
-          windowStart.setDate(max.getDate() - 6)
-          const inWindow = filteredData.filter(r => {
-            const d = parse(r.date)
-            return d >= windowStart && d <= max
-          })
-          const counts = { bug: 0, "ui-change": 0, flaky: 0, unknown: 0 }
-          inWindow.forEach(run => {
-            run.testCases.forEach(tc => {
-              if (tc.category in counts) (counts as any)[tc.category] += 1
-            })
-          })
-          const items = [
-            { key: 'bug', title: 'Bug', color: 'text-red-600', value: counts['bug'] },
-            { key: 'ui-change', title: 'UI Change', color: 'text-blue-600', value: counts['ui-change'] },
-            { key: 'flaky', title: 'Flaky', color: 'text-orange-600', value: counts['flaky'] },
-            { key: 'unknown', title: 'Unknown', color: 'text-gray-600', value: counts['unknown'] },
-          ]
-          return (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-              {items.map(i => (
-                <Card key={i.key}>
-                  <CardHeader className="pb-2">
-                    <CardTitle className={`text-sm ${i.color}`}>{i.title}</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-semibold">{i.value}</div>
-                    <div className="text-xs text-gray-500">Last 7 days</div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          )
-        })()}
+          <SummaryCards summaryCards={summaryCards} categories={categories} />
 
-        {/* Duplicate AI Insights removed */}
-
-        {/* AI Error Analysis moved to Failure / Branch Trends tab */}
+        
+          <MigrationGraph 
+            testData={testData} 
+            categories={categories} 
+            selectedTestCase={selectedTestCase} 
+            allTestCases={allTestCases} 
+            filteredData={filteredData} 
+          />
 
         {/* Persistent Failures & Emerging (last 7 days) */}
-        {(() => {
-          const parse = (s: string) => new Date(s as string)
-          const dates = filteredData.map(r => parse(r.date)).sort((a,b)=>a.getTime()-b.getTime())
-          const max = dates[dates.length-1]
-          const windowStart = new Date(max)
-          windowStart.setDate(max.getDate() - 6)
-          const windowRuns = filteredData.filter(r => {
-            const d = parse(r.date)
-            return d >= windowStart && d <= max
-          })
-
-          // summarize
-          const byTest: Record<string, number> = {}
-          windowRuns.forEach(r => r.testCases.forEach(tc => { byTest[tc.testName] = (byTest[tc.testName] ?? 0) + 1 }))
-          const tests = Object.entries(byTest).map(([name, count]) => ({ name, count }))
-          tests.sort((a,b)=>b.count-a.count)
-          const topFailures = tests.slice(0, 6)
-
-          const mid = Math.floor(windowRuns.length/2)
-          const first = windowRuns.slice(0, mid)
-          const second = windowRuns.slice(mid)
-          const countIn = (arr: typeof windowRuns, name: string) => arr.reduce((acc, r) => acc + r.testCases.filter(tc => tc.testName===name).length, 0)
-          const deltas = topFailures.map(t => ({ name: t.name, delta: countIn(second, t.name) - countIn(first, t.name) }))
-          const emerging = deltas.filter(d=>d.delta>0).slice(0,6)
-
-          return (
-            <div className="mt-4 grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Persistent Failures</CardTitle>
-                  <CardDescription>Most failing tests (last 7 days)</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <table className="w-full text-sm">
-                    <thead className="text-gray-600">
-                      <tr>
-                        <th className="text-left py-2">Test Case</th>
-                        <th className="text-right py-2">Failures</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y">
-                      {topFailures.map(item => (
-                        <tr key={item.name}>
-                          <td className="py-2 pr-2 truncate">{item.name}</td>
-                          <td className="py-2 text-right text-gray-700">{item.count}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>Recent Emerging Failures</CardTitle>
-                  <CardDescription>Increasing failures vs previous half-window</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <table className="w-full text-sm">
-                    <thead className="text-gray-600">
-                      <tr>
-                        <th className="text-left py-2">Test Case</th>
-                        <th className="text-right py-2">Δ Failures</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y">
-                      {emerging.map(item => (
-                        <tr key={item.name}>
-                          <td className="py-2 pr-2 truncate">{item.name}</td>
-                          <td className="py-2 text-right text-gray-700">+{item.delta}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </CardContent>
-              </Card>
-            </div>
-          )
-        })()}
-
-        {/* AI Insights (last 7 days) */}
-        {(() => {
-          const parse = (s: string) => new Date(s as string)
-          const dates = filteredData.map(r => parse(r.date)).sort((a,b)=>a.getTime()-b.getTime())
-          const max = dates[dates.length-1]
-          const windowStart = new Date(max)
-          windowStart.setDate(max.getDate() - 6)
-          const runs = filteredData.filter(r => {
-            const d = parse(r.date)
-            return d >= windowStart && d <= max
-          })
-          const branchCounts: Record<string, number> = {}
-          const byTest: Record<string, { count: number; durations: number[] }> = {}
-          const parseSecs = (d: string) => Number(d.replace('s','')) || 0
-          runs.forEach(r => {
-            branchCounts[r.branch] = (branchCounts[r.branch] ?? 0) + r.testCases.length
-            r.testCases.forEach(tc => {
-              if (!byTest[tc.testName]) byTest[tc.testName] = { count: 0, durations: [] }
-              byTest[tc.testName].count += 1
-              byTest[tc.testName].durations.push(parseSecs(tc.duration))
-            })
-          })
-          const testsArr = Object.entries(byTest).map(([name, v]) => ({ name, count: v.count, avg: v.durations.reduce((a,b)=>a+b,0)/(v.durations.length||1) }))
-          testsArr.sort((a,b)=>b.count-a.count)
-          const topFail = testsArr[0]
-          const uniqueTests = testsArr.length
-          const busiestBranch = Object.entries(branchCounts).sort((a,b)=>b[1]-a[1])[0]?.[0]
-          const slowest = [...testsArr].sort((a,b)=>b.avg-a.avg)[0]
-          const totalFailures = testsArr.reduce((a,b)=>a+b.count,0)
-
-          return (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <span>AI Insights</span>
-                </CardTitle>
-                <CardDescription>Snapshot insights for the last 7 days</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  <div className="flex items-start gap-3 rounded-lg border border-rose-100 bg-rose-50/60 p-3">
-                    <AlertTriangle className="h-4 w-4 mt-0.5 text-rose-600" />
-                    <p className="text-sm text-gray-800">{topFail ? `${topFail.name} is the most frequent failure (${topFail.count} runs).` : `No failures detected in this window.`}</p>
-                  </div>
-                  <div className="flex items-start gap-3 rounded-lg border border-purple-100 bg-purple-50/60 p-3">
-                    <TrendingUp className="h-4 w-4 mt-0.5 text-purple-600" />
-                    <p className="text-sm text-gray-800">Total failures observed: {totalFailures}. {uniqueTests} unique tests impacted.</p>
-                  </div>
-                  <div className="flex items-start gap-3 rounded-lg border border-blue-100 bg-blue-50/60 p-3">
-                    <GitBranch className="h-4 w-4 mt-0.5 text-blue-600" />
-                    <p className="text-sm text-gray-800">{busiestBranch ? `${busiestBranch} shows the highest failure volume this week.` : `No dominant branch this week.`}</p>
-                  </div>
-                  <div className="flex items-start gap-3 rounded-lg border border-amber-100 bg-amber-50/60 p-3">
-                    <Clock className="h-4 w-4 mt-0.5 text-amber-600" />
-                    <p className="text-sm text-gray-800">{slowest ? `${slowest.name} has the longest average duration (${slowest.avg.toFixed(1)}s).` : `Durations look stable.`}</p>
-                  </div>
-                  <div className="flex items-start gap-3 rounded-lg border border-emerald-100 bg-emerald-50/60 p-3">
-                    <CheckCircle className="h-4 w-4 mt-0.5 text-emerald-600" />
-                    <p className="text-sm text-gray-800">Focus on stabilizing top failures to reduce noise before expanding test coverage.</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          )
-        })()}
+        <FailureAnalysis filteredData={filteredData} />
 
          {/* Migration Graph (Recharts) -- commented out for now */}
          {false && (
