@@ -1,7 +1,7 @@
 "use client"
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
-import { GeneratedRun } from "@/components/ai-insights"
+import { GeneratedRun } from "@/lib/insights/generate-test-data"
 
 interface FailureAnalysisProps {
   filteredData: GeneratedRun[]

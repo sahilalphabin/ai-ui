@@ -3,14 +3,16 @@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { GeneratedRun } from "./ai-insights"
 import { Fragment } from "react"
+import { ErrorAreaChart, ErrorDataPoint } from "@/components/insights/overview/error-area-chart"
 
 interface Props {
   data: GeneratedRun[]
   categories: string[]
   branches: string[]
+  errorData?: ErrorDataPoint[]
 }
 
-export function FailureBranchTrends({ data, categories, branches }: Props) {
+export function FailureBranchTrends({ data, categories, branches, errorData }: Props) {
   // Simple computed summaries for last 7 days
   const parse = (s: string) => new Date(s as string)
   const dates = data.map(r => parse(r.date)).sort((a,b)=>a.getTime()-b.getTime())
@@ -35,6 +37,7 @@ export function FailureBranchTrends({ data, categories, branches }: Props) {
 
   return (
     <div className="space-y-6">
+      <ErrorAreaChart data={errorData} />
       {/* AI Error Analysis (last 7 days) */}
       {(() => {
         const mid = Math.floor(windowRuns.length/2) || 1

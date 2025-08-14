@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import './globals.css'
+import { NuqsAdapter } from 'nuqs/adapters/next/app'
 
 export const metadata: Metadata = {
   title: 'Testdino AI UI',
@@ -14,7 +15,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="h-full w-full">
-      <body className="h-full w-full">{children}</body>
+      <body className="h-full w-full">
+        <NuqsAdapter>{children}</NuqsAdapter>
+      </body>
     </html>
   )
 }
