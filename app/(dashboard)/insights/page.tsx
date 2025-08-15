@@ -19,13 +19,16 @@ interface EmergingFailureItem {
 
 interface InsightsData {
   summaryCards: {
-    uichange: SummaryCardData
+    ui_change: SummaryCardData
     bug: SummaryCardData
     flaky: SummaryCardData
     unknown: SummaryCardData
   }
-  persistentFailures: PersistentFailureItem[]
-  emergingFailures: EmergingFailureItem[]
+  failuresTable: {
+    persistentFailures: any[]
+    emergingFailures: any[]
+    allFailures: any[]
+  }
 }
 
 async function getInsightsData(): Promise<InsightsData | null> {
@@ -142,8 +145,7 @@ export default async function Page() {
   return (
     <Insights
       summaryCards={insightsData?.summaryCards || null}
-      persistentFailures={insightsData?.persistentFailures || []}
-      emergingFailures={insightsData?.emergingFailures || []}
+      failuresTable={insightsData?.failuresTable || null}
       errorData={graphData}
       categoryDetails={categoryDetails}
       // testData={migrationData?.runs || []}

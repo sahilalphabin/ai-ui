@@ -23,18 +23,35 @@ export function FailureBranchTrends({ data, categories, branches, errorData, cat
       branchesImpacted: new Set(apiData.flatMap(cat => Object.keys(cat.branch_details || {}))).size,
       totalFailures: apiData.reduce((sum, cat) => sum + Object.values(cat.branch_details || {}).reduce((a: any, b: any) => a + b, 0), 0),
       errorCategories: apiData.map(cat => ({
+        id: cat.id,
         name: cat.name,
-        color: getColorForCategory(cat.icon),
-        branches: Object.keys(cat.branch_details || {}),
-        testsAffected: cat.total_tests_affected || 0,
-        tests: cat.sub_errors?.flatMap((subError: any) => 
-          subError.test_occurrences?.map((test: any) => ({
-            testName: test.test_name,
-            errorMessage: subError.error_message,
-            frequency: test.frequency || 1,
-            branch: test.branches?.[0] || 'unknown'
-          })) || []
-        ) || []
+        icon: cat.icon,
+        total_tests_affected: cat.total_tests_affected || 0,
+        branch_summary: cat.branch_summary || 'unknown',
+        expanded: cat.expanded || false,
+        insights: cat.insights || {
+          critical_issues: [],
+          medium_issues: [],
+          low_issues: [],
+          metrics: {
+            unique_errors: 0,
+            tests_affected: 0,
+            branch_impact: {
+              percentage: 0,
+              branch: 'unknown',
+              total_branches: 0,
+              primary_branch_count: 0,
+              total_failures: 0
+            },
+            pattern_coverage: {
+              percentage: 0,
+              top_patterns_count: 0,
+              total_failures: 0,
+              top_3_failures: 0
+            }
+          }
+        },
+        branch_details: cat.branch_details || {}
       }))
     }
   }

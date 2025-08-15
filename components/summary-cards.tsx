@@ -10,7 +10,7 @@ interface SummaryCardData {
 
 interface SummaryCardsProps {
   summaryCards: {
-    uichange: SummaryCardData;
+    ui_change: SummaryCardData;
     bug: SummaryCardData;
     flaky: SummaryCardData;
     unknown: SummaryCardData;
@@ -64,7 +64,7 @@ export function SummaryCards({ summaryCards, categories }: SummaryCardsProps) {
 
   const cards = [
     { title: 'Bug', data: summaryCards.bug, icon: 'bug', color: 'text-red-600', bgColor: 'bg-red-50' },
-    { title: 'UI Change', data: summaryCards.uichange, icon: 'ui-change', color: 'text-blue-600', bgColor: 'bg-blue-50' },
+    { title: 'UI Change', data: summaryCards.ui_change, icon: 'ui-change', color: 'text-blue-600', bgColor: 'bg-blue-50' },
     { title: 'Flaky', data: summaryCards.flaky, icon: 'flaky', color: 'text-yellow-600', bgColor: 'bg-yellow-50' },
     { title: 'Unknown', data: summaryCards.unknown, icon: 'unknown', color: 'text-gray-600', bgColor: 'bg-gray-50' }
   ]
