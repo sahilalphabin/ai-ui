@@ -33,7 +33,8 @@ interface InsightsProps {
   // If provided by the server, use real migration data; otherwise fall back to generated data
   testData?: GeneratedRun[]
   categories?: string[]
-  errorData?: { date: string; error_message: string; count: number }[]
+  errorData?: { date: string; category_key: string; display_name: string; count: number }[]
+  categoryDetails?: any[]
 }
 
 // Local copies of migration data interfaces for prop typing
@@ -54,7 +55,7 @@ interface GeneratedRun {
   testCases: GeneratedTestCase[]
 }
 
-export function Insights({ summaryCards, persistentFailures, emergingFailures, testData, categories, errorData }: InsightsProps) {
+export function Insights({ summaryCards, persistentFailures, emergingFailures, testData, categories, errorData, categoryDetails }: InsightsProps) {
   // Keep fake generation logic, but prefer real API data when provided
   const fallbackTestData = generateTestData(20, 10, 1337)
   const fallbackCategories = ["unknown", "bug", "ui-change", "flaky"] as const
@@ -72,6 +73,7 @@ export function Insights({ summaryCards, persistentFailures, emergingFailures, t
       categories={categoriesToUse}
       branches={branches}
       errorData={errorData}
+      categoryDetails={categoryDetails}
     />
   )
 }

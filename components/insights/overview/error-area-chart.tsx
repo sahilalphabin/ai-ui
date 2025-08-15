@@ -17,7 +17,9 @@ import {
 
 interface ErrorDataPoint {
   date: string
-  error_message: string
+  category_key?: string
+  display_name?: string
+  error_message?: string
   count: number
 }
 
@@ -47,7 +49,13 @@ function formatDateLabel(isoDate: string): string {
 }
 
 export function ErrorAreaChart({ data }: ErrorAreaChartProps) {
-  const points = data && data.length > 0 ? data : sampleData
+  const points = (data && data.length > 0 ? data : sampleData)
+    // Map new backend schema to legacy shape for chart processing
+    .map(p => ({
+      date: p.date,
+      error_message: p.error_message || p.display_name || p.category_key || 'Unknown',
+      count: p.count,
+    }))
 
   const uniqueErrors = useMemo(() => {
     const set = new Set<string>()
@@ -62,10 +70,13 @@ export function ErrorAreaChart({ data }: ErrorAreaChartProps) {
       entry[p.error_message] = (entry[p.error_message] ?? 0) + p.count
       byDate.set(p.date, entry)
     })
-    const sortedDates = Array.from(byDate.keys()).sort()
-    return sortedDates.map(date => {
+    
+    // Preserve the chronological order from the API by using the order from points
+    const dateOrder = Array.from(new Set(points.map(p => p.date)))
+    
+    return dateOrder.map(date => {
       const counts = byDate.get(date) || {}
-      const row: Record<string, unknown> = { date, label: formatDateLabel(date) }
+      const row: Record<string, unknown> = { date, label: date } // Use original date format as label
       uniqueErrors.forEach(err => { row[err] = counts[err] ?? 0 })
       return row
     })
@@ -201,7 +212,7 @@ export function ErrorAreaChart({ data }: ErrorAreaChartProps) {
               <CartesianGrid strokeDasharray="3 3" vertical={false} />
               <XAxis dataKey="label" tickLine={false} axisLine={{ stroke: '#E5E7EB' }} />
               <YAxis allowDecimals={false} tickLine={false} axisLine={{ stroke: '#E5E7EB' }} />
-              <Tooltip content={<StackedTooltip hideSeriesNames />} />
+              <Tooltip content={<StackedTooltip />} />
               {visibleErrors.map((err) => (
                 <Area
                   key={err}
@@ -237,9 +248,7 @@ function StackedTooltip({ active, payload, label, hideSeriesNames = false }: any
           <div key={it.dataKey} className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-2">
               <span className="inline-block h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: it.color }} />
-              {!hideSeriesNames && (
-                <span className="truncate max-w-[220px]" title={String(it.dataKey)}>{String(it.dataKey)}</span>
-              )}
+              <span className="truncate max-w-[220px]" title={String(it.dataKey)}>{String(it.dataKey)}</span>
             </div>
             <span className="tabular-nums">{it.value}</span>
           </div>

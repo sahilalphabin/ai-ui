@@ -86,42 +86,66 @@ async function getMigrationData(): Promise<MigrationResponseData | null> {
   }
 }
 
-// Error analysis (for stacked area chart)
-interface ErrorDataPoint {
+// Error analysis (new backend schema → normalize here for chart)
+interface ErrorSeriesPoint {
   date: string
-  error_message: string
+  category_key: string
+  display_name: string
   count: number
 }
 
-async function getErrorAnalysisData(): Promise<ErrorDataPoint[]> {
+async function getErrorAnalysisData(): Promise<{ graphData: ErrorSeriesPoint[], categoryDetails: any[] }> {
   noStore()
   try {
     const response = await fetch('http://localhost:8000/api/insights/project/analysis/project_68497b2346dd1403362abe05?environment=Development&dateRange=7days', { cache: 'no-store' })
-    if (!response.ok) return []
+    if (!response.ok) return { graphData: [], categoryDetails: [] }
     const result = await response.json()
     console.log("result", result)
-    // Support either { data: { points: [...] }} or { data: [...] }
+    
     const data = result?.data
-    if (Array.isArray(data)) return data as ErrorDataPoint[]
-    if (data && Array.isArray(data.points)) return data.points as ErrorDataPoint[]
-    return []
+    if (!data) return { graphData: [], categoryDetails: [] }
+
+    // Extract graph data for ErrorAreaChart
+    const graphData: ErrorSeriesPoint[] = []
+    if (data.graph_data?.dates && data.graph_data?.categories) {
+      const { dates, categories } = data.graph_data
+      // Process dates in their original order (chronological)
+      dates.forEach((date: string, index: number) => {
+        categories.forEach((category: any) => {
+          graphData.push({
+            date: date,
+            category_key: category.name,
+            display_name: category.label,
+            count: category.data[index] || 0,
+          })
+        })
+      })
+    }
+
+    // Extract category details for AIErrorAnalysis
+    const categoryDetails = data.category_details || []
+
+    return { graphData, categoryDetails }
   } catch {
-    return []
+    return { graphData: [], categoryDetails: [] }
   }
 }
 
 export default async function Page() {
-  const [insightsData, errorData] = await Promise.all([
+  const [insightsData, errorAnalysisData] = await Promise.all([
     getInsightsData(),
     getErrorAnalysisData(),
   ])
+  
+  const { graphData, categoryDetails } = errorAnalysisData
   // const migrationData = await getMigrationData()
   return (
     <Insights
       summaryCards={insightsData?.summaryCards || null}
       persistentFailures={insightsData?.persistentFailures || []}
       emergingFailures={insightsData?.emergingFailures || []}
-      errorData={errorData}
+      errorData={graphData}
+      categoryDetails={categoryDetails}
       // testData={migrationData?.runs || []}
       // categories={migrationData?.categories || []}
     />

@@ -4,15 +4,51 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { GeneratedRun } from "./ai-insights"
 import { Fragment } from "react"
 import { ErrorAreaChart, ErrorDataPoint } from "@/components/insights/overview/error-area-chart"
+import { AIErrorAnalysis } from "@/components/ai-error-analysis"
+
 
 interface Props {
   data: GeneratedRun[]
   categories: string[]
   branches: string[]
   errorData?: ErrorDataPoint[]
+  categoryDetails?: any[]
 }
 
-export function FailureBranchTrends({ data, categories, branches, errorData }: Props) {
+export function FailureBranchTrends({ data, categories, branches, errorData, categoryDetails }: Props) {
+  // Transform API category details to component format
+  function transformCategoryDetails(apiData: any[]) {
+    return {
+      totalTestsAffected: apiData.reduce((sum, cat) => sum + (cat.total_tests_affected || 0), 0),
+      branchesImpacted: new Set(apiData.flatMap(cat => Object.keys(cat.branch_details || {}))).size,
+      totalFailures: apiData.reduce((sum, cat) => sum + Object.values(cat.branch_details || {}).reduce((a: any, b: any) => a + b, 0), 0),
+      errorCategories: apiData.map(cat => ({
+        name: cat.name,
+        color: getColorForCategory(cat.icon),
+        branches: Object.keys(cat.branch_details || {}),
+        testsAffected: cat.total_tests_affected || 0,
+        tests: cat.sub_errors?.flatMap((subError: any) => 
+          subError.test_occurrences?.map((test: any) => ({
+            testName: test.test_name,
+            errorMessage: subError.error_message,
+            frequency: test.frequency || 1,
+            branch: test.branches?.[0] || 'unknown'
+          })) || []
+        ) || []
+      }))
+    }
+  }
+
+  function getColorForCategory(icon: string): string {
+    switch (icon) {
+      case 'red': return '#ef4444'
+      case 'blue': return '#3b82f6'
+      case 'orange': return '#f59e0b'
+      case 'purple': return '#8b5cf6'
+      default: return '#6b7280'
+    }
+  }
+
   // Simple computed summaries for last 7 days
   const parse = (s: string) => new Date(s as string)
   const dates = data.map(r => parse(r.date)).sort((a,b)=>a.getTime()-b.getTime())
@@ -38,7 +74,7 @@ export function FailureBranchTrends({ data, categories, branches, errorData }: P
   return (
     <div className="space-y-6">
       <ErrorAreaChart data={errorData} />
-      {/* AI Error Analysis (last 7 days) */}
+
       {(() => {
         const mid = Math.floor(windowRuns.length/2) || 1
         const first = windowRuns.slice(0, mid)
@@ -96,38 +132,7 @@ export function FailureBranchTrends({ data, categories, branches, errorData }: P
           })
 
         return (
-          <Card>
-            <CardHeader>
-              <CardTitle>AI Error Analysis</CardTitle>
-              <CardDescription>How errors impacted the last 7 days</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="overflow-auto">
-                <table className="w-full text-sm">
-                  <thead className="text-gray-600">
-                    <tr>
-                      <th className="text-left py-2">Error Cluster</th>
-                      <th className="text-left py-2">Trend</th>
-                      <th className="text-left py-2">Impact</th>
-                      <th className="text-left py-2">AI Insight</th>
-                      <th className="text-left py-2">Suggested Action</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y">
-                    {rows.map(r => (
-                      <tr key={r.error}>
-                        <td className="py-2 pr-3 whitespace-nowrap text-gray-900">{r.error}</td>
-                        <td className="py-2 pr-3">{r.trend}</td>
-                        <td className="py-2 pr-3">{r.impact}</td>
-                        <td className="py-2 pr-3 text-gray-700">{r.insight}</td>
-                        <td className="py-2 pr-3 text-gray-700">{r.action}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </CardContent>
-          </Card>
+          <AIErrorAnalysis data={categoryDetails ? transformCategoryDetails(categoryDetails) : undefined} />
         )
       })()}
 

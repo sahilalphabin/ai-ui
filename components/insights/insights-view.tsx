@@ -13,6 +13,7 @@ import { SummaryCards } from "@/components/insights/overview/summary-cards"
 // import { FailureAnalysis } from "@/components/insights/overview/failure-analysis"
 import { FailureBranchTrends } from "@/components/insights/trends/failure-branch-trends"
 import { PersistentEmergingTables } from "./overview/persistent-emerging-tables"
+// import { AIErrorAnalysis } from "@/components/ai-error-analysis"
 // import { ErrorAreaChart } from "./overview/error-area-chart"
 
 interface SummaryCardData {
@@ -53,10 +54,44 @@ interface InsightsViewProps {
   testData: GeneratedRun[]
   categories: string[]
   branches: string[]
-  errorData?: { date: string; error_message: string; count: number }[]
+  errorData?: { date: string; category_key: string; display_name: string; count: number }[]
+  categoryDetails?: any[]
 }
 
-export function InsightsView({ summaryCards, persistentFailures, emergingFailures, testData, categories, branches, errorData }: InsightsViewProps) {
+export function InsightsView({ summaryCards, persistentFailures, emergingFailures, testData, categories, branches, errorData, categoryDetails }: InsightsViewProps) {
+  // Transform API category details to component format
+  function transformCategoryDetails(apiData: any[]) {
+    return {
+      totalTestsAffected: apiData.reduce((sum, cat) => sum + (cat.total_tests_affected || 0), 0),
+      branchesImpacted: new Set(apiData.flatMap(cat => Object.keys(cat.branch_details || {}))).size,
+      totalFailures: apiData.reduce((sum, cat) => sum + Object.values(cat.branch_details || {}).reduce((a: any, b: any) => a + b, 0), 0),
+      errorCategories: apiData.map(cat => ({
+        name: cat.name,
+        color: getColorForCategory(cat.icon),
+        branches: Object.keys(cat.branch_details || {}),
+        testsAffected: cat.total_tests_affected || 0,
+        tests: cat.sub_errors?.flatMap((subError: any) => 
+          subError.test_occurrences?.map((test: any) => ({
+            testName: test.test_name,
+            errorMessage: subError.error_message,
+            frequency: test.frequency || 1,
+            branch: test.branches?.[0] || 'unknown'
+          })) || []
+        ) || []
+      }))
+    }
+  }
+
+  function getColorForCategory(icon: string): string {
+    switch (icon) {
+      case 'red': return '#ef4444'
+      case 'blue': return '#3b82f6'
+      case 'orange': return '#f59e0b'
+      case 'purple': return '#8b5cf6'
+      default: return '#6b7280'
+    }
+  }
+
   const [tab, setTab] = useQueryState('tab', { defaultValue: 'overview' })
   const [selectedBranch, setSelectedBranch] = useQueryState('branch', { defaultValue: 'All' })
   const [selectedTestCase, setSelectedTestCase] = useQueryState('test', { defaultValue: 'All' })
@@ -136,6 +171,7 @@ export function InsightsView({ summaryCards, persistentFailures, emergingFailure
           </TabsList>
           <TabsContent value="overview">
             <SummaryCards summaryCards={summaryCards} categories={categories} />
+            {/* <AIErrorAnalysis data={categoryDetails ? transformCategoryDetails(categoryDetails) : undefined} /> */}
             <PersistentEmergingTables
               persistentFailures={persistentFailures}
               emergingFailures={emergingFailures}
@@ -182,6 +218,7 @@ export function InsightsView({ summaryCards, persistentFailures, emergingFailure
               categories={categories}
               branches={branches.slice(1)}
               errorData={errorData}
+              categoryDetails={categoryDetails}
             />
           </TabsContent>
         </Tabs>
